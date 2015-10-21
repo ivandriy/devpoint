@@ -23,27 +23,34 @@ Add-Type –Path "$($DllsDir)\Microsoft.SharePoint.Client.Runtime.dll"
 function Get-SPOWebs()
 {
 param(
-   $Url = $(throw "Please provide a Site Collection Url"),
-   $Credential = $(throw "Please provide a Credentials")
+
+    [Microsoft.SharePoint.Client.ClientContext]$Context,
+    [Microsoft.SharePoint.Client.Web]$RootWeb
 )
   
-  Write-Host "Loading subwebs for site $($Url)"
-  $context = New-Object Microsoft.SharePoint.Client.ClientContext($Url)  
-  $context.Credentials = $Credential
-   
-  $rootweb = $context.Web
-  $context.Load($rootweb)
-
   $childwebs = $rootweb.Webs
   $context.Load($childwebs)
-
   $context.ExecuteQuery()
 
   [Object[]]$allwebs = @()
-  $allwebs += $rootweb
   foreach($web in $childwebs)
   {
-       $allwebs +=$web
+       Get-SPOWebs -Context $Context -RootWeb $web
+       $webobj = New-Object PSObject
+       [string]$isDevOrTest = ""
+       $webobj|Add-Member -MemberType NoteProperty -Name Url -Value $web.Url
+       $webobj|Add-Member -MemberType NoteProperty -Name Title -Value $web.Title
+       $webobj|Add-Member -MemberType NoteProperty -Name IsRoot -Value "N"
+       if($web.Url.Contains("dev") -or ($web.Url.Contains("test")))
+       {
+            $isDevOrTest = "Y"
+       }
+       else
+       {
+            $isDevOrTest = "N"
+       }
+       $webobj|Add-Member -MemberType NoteProperty -Name IsDevTest -Value $isDevOrTest
+       $allwebs += $webobj 
   }
  
   return $allwebs
@@ -59,7 +66,6 @@ foreach ($char in $SecureArray)
 {
     $SecurePassword.AppendChar($char)
 }
-#$SecurePassword = $Password | ConvertTo-SecureString -AsPlainText -Force
 
 $SPOCredentials = New-Object Microsoft.SharePoint.Client.SharePointOnlineCredentials($UserName, $SecurePassword)
 
@@ -92,25 +98,52 @@ catch
     Write-Host "Exception Message: $($_.Exception.Message)" -ForegroundColor Red   
 }
 
-$allwebs = @()
+[Object[]]$allwebs = @()
 foreach ($site in $sites)
 {
     $subwebs=@()
     $surl = $site.Url
+    $context = New-Object Microsoft.SharePoint.Client.ClientContext($surl)  
+    $context.Credentials = $SPOCredentials
+    [Microsoft.SharePoint.Client.Web]$web = $context.Web
+    $context.Load($web)
+    $context.ExecuteQuery()
+
+    [string]$isDevOrTest = ""
+    $webobj = New-Object PSObject
+    $webobj|Add-Member -MemberType NoteProperty -Name Url -Value $web.Url
+    $webobj|Add-Member -MemberType NoteProperty -Name Title -Value $web.Title
+    $webobj|Add-Member -MemberType NoteProperty -Name IsRoot -Value "Y"
+    if($web.Url.Contains("dev") -or ($web.Url.Contains("test")))
+       {
+            $isDevOrTest = "Y"
+       }
+    else
+       {
+            $isDevOrTest = "N"
+       }
+    $webobj|Add-Member -MemberType NoteProperty -Name IsDevTest -Value $isDevOrTest
+
+    $allwebs += $webobj
     Write-Host "============================================"
-    $subwebs = Get-SPOWebs -Url $site.Url -Credential $SPOCredentials
+    $subwebs = Get-SPOWebs -Context $context -RootWeb $web
     if($subwebs)
     {
         Write-Host "Site $($surl) have $($subwebs.Count) web(s): " -ForegroundColor Green
-        foreach ($web in $subwebs)
+        foreach ($subweb in $subwebs)
         {
-            $allwebs += $web
-            Write-Host "  "$web.Url -ForegroundColor Yellow
-        }
-        Write-Host "============================================"
-        Write-Host
+            $allwebs += $subweb
+            Write-Host "  "$subweb.Url -ForegroundColor Yellow
+        }        
         
     }
+    else
+    {
+        Write-Host "Site $($surl) have no subwebs" -ForegroundColor Green
+
+    }
+    Write-Host "============================================"
+    Write-Host
 }
 
 $WebsCount = $allwebs.Count
@@ -127,10 +160,10 @@ else
 
 $SaveDir = $env:TEMP
 $ReportFile = $SaveDir+"\allwebs.txt"
-$allwebs|ForEach {$_.Url} |Out-File $ReportFile
+$allwebs|ForEach {" Web: "+$_.Url +"  Root:" +$_.IsRoot+"  DevOrTest:"+$_.IsDevTest} |Out-File $ReportFile
 Write-Host "Report is saved at - $($ReportFile)"
 
-<#Write-Host "Connecting to destination site $($SiteUrl) with list $($ListName)" -ForegroundColor Yellow
+Write-Host "Connecting to destination site $($SiteUrl) with list $($ListName)" -ForegroundColor Yellow
 try
 {
     $context = New-Object Microsoft.SharePoint.Client.ClientContext($SiteUrl)  
@@ -175,17 +208,34 @@ Write-Host "Done!" -ForegroundColor Black -BackgroundColor Green
 
 $ItemsCount = $WebsCount
 Write-Host "Adding $($ItemsCount) items into list $($ListName)" -ForegroundColor Yellow
-foreach ($web in $allwebs) 
+foreach ($subweb in $allwebs) 
 {
     [Microsoft.SharePoint.Client.ListItemCreationInformation]$itemCreateInfo = New-Object Microsoft.SharePoint.Client.ListItemCreationInformation
     [Microsoft.SharePoint.Client.ListItem]$item = $list.AddItem($itemCreateInfo)
-    $item["Title"] = $web.Title
-    $item["SiteURL"] = $web.URL
+    $item["Title"] = $subweb.Title
+    $item["SiteURL"] = $subweb.URL
+    if($subweb.isRoot -match "Y")
+    {
+        $item["SiteCollectionRoot"] = $true
+    }
+    else
+    {
+        $item["SiteCollectionRoot"] = $false
+    }
+
+    if($subweb.IsDevTest -match "Y")
+    {
+        $item["DevOrTestSite"] = $true
+    }
+    else
+    {
+        $item["DevOrTestSite"] = $false
+    }
 
     $item.Update()
 
     $context.ExecuteQuery()
-}#>
+}
 Write-Host "Done!" -ForegroundColor Black -BackgroundColor Green
 Write-Host
 Write-Host "Script finished!" -ForegroundColor Black -BackgroundColor DarkGreen
