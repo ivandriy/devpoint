@@ -36,21 +36,25 @@ param(
   foreach($web in $childwebs)
   {
        Get-SPOWebs -Context $Context -RootWeb $web
-       $webobj = New-Object PSObject
-       [string]$isDevOrTest = ""
-       $webobj|Add-Member -MemberType NoteProperty -Name Url -Value $web.Url
-       $webobj|Add-Member -MemberType NoteProperty -Name Title -Value $web.Title
-       $webobj|Add-Member -MemberType NoteProperty -Name IsRoot -Value "N"
-       if($web.Url.Contains("dev") -or ($web.Url.Contains("test")))
+       if(!([System.String]::IsNullOrWhiteSpace($web.Url )))
        {
-            $isDevOrTest = "Y"
-       }
-       else
-       {
-            $isDevOrTest = "N"
-       }
-       $webobj|Add-Member -MemberType NoteProperty -Name IsDevTest -Value $isDevOrTest
-       $allwebs += $webobj 
+           $webobj = New-Object PSObject
+           [string]$isDevOrTest = ""
+           $webobj|Add-Member -MemberType NoteProperty -Name Url -Value $web.Url
+           $webobj|Add-Member -MemberType NoteProperty -Name Title -Value $web.Title
+           $webobj|Add-Member -MemberType NoteProperty -Name IsRoot -Value "N"
+           if($web.Url.Contains("dev") -or ($web.Url.Contains("test")))
+           {
+                $isDevOrTest = "Y"
+           }
+           else
+           {
+                $isDevOrTest = "N"
+           }
+           $webobj|Add-Member -MemberType NoteProperty -Name IsDevTest -Value $isDevOrTest
+           $allwebs += $webobj 
+        
+       } 
   }
  
   return $allwebs
