@@ -216,29 +216,33 @@ foreach ($subweb in $allwebs)
 {
     [Microsoft.SharePoint.Client.ListItemCreationInformation]$itemCreateInfo = New-Object Microsoft.SharePoint.Client.ListItemCreationInformation
     [Microsoft.SharePoint.Client.ListItem]$item = $list.AddItem($itemCreateInfo)
-    $item["Title"] = $subweb.Title
-    $item["SiteURL"] = $subweb.URL
-    if($subweb.isRoot -match "Y")
-    {
-        $item["SiteCollectionRoot"] = $true
-    }
-    else
-    {
-        $item["SiteCollectionRoot"] = $false
-    }
 
-    if($subweb.IsDevTest -match "Y")
+    if(!([System.String]::IsNullOrWhiteSpace($subweb.URL )))
     {
-        $item["DevOrTestSite"] = $true
-    }
-    else
-    {
-        $item["DevOrTestSite"] = $false
-    }
+     
+            $item["Title"] = $subweb.Title
+            $item["SiteURL"] = $subweb.URL
+            if($subweb.isRoot -match "Y")
+            {
+                $item["SiteCollectionRoot"] = $true
+            }
+            else
+            {
+                $item["SiteCollectionRoot"] = $false
+            }
 
-    $item.Update()
+            if($subweb.IsDevTest -match "Y")
+            {
+                $item["DevOrTestSite"] = $true
+            }
+            else
+            {
+                $item["DevOrTestSite"] = $false
+            }
 
-    $context.ExecuteQuery()
+            $item.Update()
+            $context.ExecuteQuery()   
+    }
 }
 Write-Host "Done!" -ForegroundColor Black -BackgroundColor Green
 Write-Host
