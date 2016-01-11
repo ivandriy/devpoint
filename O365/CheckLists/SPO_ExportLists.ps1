@@ -141,18 +141,11 @@ foreach ($mosslist in $MossLists)
          $context.Load($web)
          $context.ExecuteQuery()
          $webTitle = $web.Title
-
-         #Write-Host "Checking list/library: "$list.Title
-         #Write-Host
          if($mosslist.Type -eq "List")
          {
             $listurl = $o365Web+"Lists/"+ $list.Title
             $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
             $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
-
-            #$listobj| Add-Member -Name "ItemCount" -MemberType NoteProperty -Value $list.ItemCount
-            #$listobj| Add-Member -Name "ItemsFilePath" -MemberType NoteProperty -Value " "
-
             if($list.ItemCount -ne $mosslist.ItemCount)
             {
                 $listobj| Add-Member -Name "SPOItemCount" -MemberType NoteProperty -Value $list.ItemCount
@@ -203,9 +196,7 @@ foreach ($mosslist in $MossLists)
              }
             
          }
-         
-         
-         #$SPOLists += $listobj
+                  
 
     }
     catch
@@ -215,29 +206,6 @@ foreach ($mosslist in $MossLists)
     
 }
 
-#Write-host "Found: $($SPOLists.Count) lists in $($O365SiteUrl) site"
-
-#Write-Host "SPO Lists:"
-#$SPOLists|Format-Table -AutoSize -Wrap -Property Url,Title,ItemCount,LastModified
-
-#Write-Host "Found $($Docs.Count) document(s):"
-#$Docs|Format-Table -AutoSize -Wrap -Property Name,Modified,Size
-
-#Write-Host "Missed lists:"
-#$MissedLists|Format-Table -AutoSize -Wrap -Property Url,Title,ItemCount,LastModified
-
-#For Output file generation
-<#$SaveDir = Split-Path -parent $MyInvocation.MyCommand.Path
-$OutputFileName = "SPO_"+$SPOWebTitle + "_Lists.csv"
-$OutputFilePath = $SaveDir+"\"+$OutputFileName
-#delete the file, If already exist!
-if (Test-Path $OutputFilePath)
- {
-    Remove-Item $OutputFilePath
- }
-
-$SPOLists|Export-Csv $OutputFilePath -NoTypeInformation
-Write-Host "Lists report saved to: $OutputFilePath"#>
 
 $SaveDir = Split-Path -parent $MyInvocation.MyCommand.Path
 

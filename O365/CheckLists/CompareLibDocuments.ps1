@@ -45,7 +45,6 @@ foreach ($mossfile in $MossExportFiles)
     if (Test-Path $($SPOExportFolder+"\$($mossfile.Name)"))
     {
         Write-Host "=========================================================="
-        #Write-Host "Starting check for $($mossfile.Name)"
         $MissedDocs = @()
         $ModifiedDocs = @()
         $OKDocs = @()
@@ -99,13 +98,6 @@ foreach ($mossfile in $MossExportFiles)
             }
         }
 
-        
-        #Write-Host "   missed files count: $($MissedDocs.Count)"
-        #$MissedDocs|Format-Table -AutoSize -Wrap -Property Name,RelativeUrl,Modified
-        #Write-Host "   files with non matched modified date: $($ModifiedDocs.Count)"
-        #$ModifiedDocs|Format-Table -AutoSize -Wrap -Property Name,RelativeUrl,MossModified,SPOModified
-        #Write-Host "   other files: $($OKDocs.Count)"
-        #$OKDocs|Format-Table -AutoSize -Wrap -Property Name,RelativeUrl,Url
 
         if($MissedDocs.Count -gt 0)
         {

@@ -50,14 +50,10 @@ foreach ($web in $site.AllWebs)
                     foreach($item in $list.Items)
                     {
                         $itemobj=New-Object -TypeName PSObject
-                        $itemobj|Add-Member -Name "Name" -MemberType Noteproperty -Value $item["Name"]
-                        #$itemobj|Add-Member -Name "Folder" -MemberType Noteproperty -Value $item["FileDirRef"]
-
+                        $itemobj|Add-Member -Name "Name" -MemberType Noteproperty -Value $item["Name"]                        
                         $itemobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $item["ServerUrl"]
-                        $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]
-                        
-                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $item["Modified"]
-                        #$itemobj|Add-Member -Name "Size" -MemberType Noteproperty -Value $item["File_x0020_Size"]
+                        $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]                        
+                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $item["Modified"]                        
                         $Docs += $itemobj
                     }
                     $CurrentDir = Split-Path -parent $MyInvocation.MyCommand.Path
@@ -92,17 +88,6 @@ foreach ($web in $site.AllWebs)
     
     }
 
-#$Docs|Format-Table -AutoSize -Wrap -Property Url,Name,Modified
-
-#Write-host "Found: $($MossLists.Count) lists in $($MossSiteUrl) site"
-
-#$Libs = $MossLists|Where {$_.Type -eq "Library"}
-#$Lists = $MossLists|Where {$_.Type -eq "List"}
-
-#Write-Host "Lists:"
-#$Lists|Format-Table -AutoSize -Wrap -Property Url,ItemCount
-#Write-Host "Libraries:"
-#$Libs|Format-Table -AutoSize -Wrap -Property Url,LastModified
 
 #For Output file generation
 $SaveDir = Split-Path -parent $MyInvocation.MyCommand.Path
