@@ -4,15 +4,54 @@
     [string]$MossSiteUrl
 )
 
+function Export-ToCsvFile
+{
+    param(
+        [Object[]]$ListToExport,
+        $CsvFileName
+    )
+
+   if($ListToExport.Count -gt 0)
+   {
+     $CurrentDir = Split-Path -parent $script:MyInvocation.MyCommand.Path
+     $SaveDir = $CurrentDir+"\Output"
+     if(!(Test-Path $SaveDir))
+     {
+        New-Item -ItemType Directory -Force -Path $SaveDir|Out-Null
+     }
+                    
+     $OutputFileName = $CsvFileName +".csv"
+     $OutputFilePath = $SaveDir+"\"+$OutputFileName        
+     if (Test-Path $OutputFilePath)
+     {
+        Remove-Item $OutputFilePath
+     }
+             
+     $ListToExport|Export-Csv $OutputFilePath -NoTypeInformation
+     Write-Host          
+     Write-Host "File saved to: $OutputFilePath"
+   }
+}
+
+
 if ($PSVersionTable.PSVersion -gt [Version]"2.0") {
   powershell -Version 2 -File $MyInvocation.MyCommand.Definition $MossSiteUrl
   exit
 }
 
 
-Write-Host "Load MOSS PowerShell assembly" -ForegroundColor Black -BackgroundColor Yellow
-[void][System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SharePoint")
-Write-Host "MOSS PowerShell assembly loaded successfully" -ForegroundColor Black -BackgroundColor Green
+Write-Host "Loading MOSS PowerShell assembly..."
+try
+{
+    [void][System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SharePoint")    
+}
+catch
+{
+    Write-Host "Caught an exception while loading MOSS assenbly:" -ForegroundColor Red
+    Write-Host "Exception Type: $($_.Exception.GetType().FullName)" -ForegroundColor Red
+    Write-Host "Exception Message: $($_.Exception.Message)" -ForegroundColor Red
+    return    
+}
 
 $systemlibs =@("Converted Forms", "Customized Reports", "Form Templates",  
                               "Images", "List Template Gallery", "Master Page Gallery", "Pages",  
@@ -21,6 +60,9 @@ $systemlibs =@("Converted Forms", "Customized Reports", "Form Templates",
                                "Style Library", "Theme Gallery", "Web Part Gallery", "wfpub","User Information List","Workflows","Workflow History","Tasks")
 
 $MossLists = @()
+$CurrentDir = Split-Path -parent $MyInvocation.MyCommand.Path
+$TargetDir = $CurrentDir+"\Output"
+
 $site = New-Object Microsoft.SharePoint.SPSite($MossSiteUrl)
 
 Write-Host
@@ -56,8 +98,12 @@ foreach ($web in $site.AllWebs)
                         $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $item["Modified"]                        
                         $Docs += $itemobj
                     }
-                    $CurrentDir = Split-Path -parent $MyInvocation.MyCommand.Path
-                    $SaveDir = $CurrentDir+"\MOSS_Libraries"
+                    
+                    if(!(Test-Path $TargetDir))
+                    {
+                        New-Item -ItemType Directory -Force -Path $TargetDir|Out-Null
+                    }
+                    $SaveDir = $TargetDir+"\MOSS_Libraries"
                     if(!(Test-Path $SaveDir))
                     {
                         New-Item -ItemType Directory -Force -Path $SaveDir|Out-Null
@@ -70,9 +116,7 @@ foreach ($web in $site.AllWebs)
                      {
                         Remove-Item $OutputFilePath
                      }
-                     $Docs|Export-Csv $OutputFilePath -NoTypeInformation
-                     Write-Host "Library [$list] exported to: $OutputFilePath"
-                     Write-Host                      
+                     $Docs|Export-Csv $OutputFilePath -NoTypeInformation                      
                 }
                 else
                 {
@@ -89,17 +133,13 @@ foreach ($web in $site.AllWebs)
     }
 
 
-#For Output file generation
-$SaveDir = Split-Path -parent $MyInvocation.MyCommand.Path
-$OutputFileName = "MOSS_"+$site.RootWeb.Title + "_Lists.csv"
-$OutputFilePath = $SaveDir+"\"+$OutputFileName
-#delete the file, If already exist!
-if (Test-Path $OutputFilePath)
- {
-    Remove-Item $OutputFilePath
- }
+if($MossLists.Count -gt 0)
+{
+    Export-ToCsvFile -ListToExport $MossLists -CsvFileName "Lists"
+    Write-Host
+    Write-Host "Exported: $($MossLists.Count) list(s)"
+}
 
-$MossLists|Export-Csv $OutputFilePath -NoTypeInformation
-Write-Host "Lists report saved to: $OutputFilePath"
 Write-Host
+Write-Host "Done!" -ForegroundColor Green
 

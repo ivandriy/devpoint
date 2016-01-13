@@ -1,8 +1,5 @@
 ﻿param
-(
-    [parameter(Mandatory=$true)]
-    [string]$MossListsFile,
-
+(   
     [parameter(Mandatory=$true)]
     [string]$O365SiteUrl,
     
@@ -68,6 +65,36 @@ function Get-FolderFiles
     return $files
 }
 
+function Export-ToCsvFile
+{
+    param(
+        [Object[]]$ListToExport,
+        $CsvFileName
+    )
+
+   if($ListToExport.Count -gt 0)
+   {
+     $CurrentDir = Split-Path -parent $script:MyInvocation.MyCommand.Path
+     $SaveDir = $CurrentDir+"\Output"
+     if(!(Test-Path $SaveDir))
+     {
+        New-Item -ItemType Directory -Force -Path $SaveDir|Out-Null
+     }
+                    
+     $OutputFileName = $CsvFileName +".csv"
+     $OutputFilePath = $SaveDir+"\"+$OutputFileName        
+     if (Test-Path $OutputFilePath)
+     {
+        Remove-Item $OutputFilePath
+     }
+             
+     $ListToExport|Export-Csv $OutputFilePath -NoTypeInformation
+     Write-Host
+     Write-Host "File saved to: $OutputFilePath"
+               
+   }
+}
+
 
 if ($PSVersionTable.PSVersion -lt [Version]"3.0") {
   powershell -Version 3 -File $MyInvocation.MyCommand.Definition $MossListsFile $O365SiteUrl $UserName $UserPassword
@@ -75,14 +102,25 @@ if ($PSVersionTable.PSVersion -lt [Version]"3.0") {
 }
 
 $Password = $UserPassword |ConvertTo-SecureString -AsPlainText -force
-Write-Host "Load CSOM libraries" -ForegroundColor Black -BackgroundColor Yellow
+Write-Host
+Write-Host "Loading SPO CSOM assemblies..."
 $Dir = Split-Path -parent $MyInvocation.MyCommand.Path
 $DllsDir = $Dir+"\DLL"
-Add-Type –Path "$($DllsDir)\Microsoft.SharePoint.Client.dll" 
-Add-Type –Path "$($DllsDir)\Microsoft.SharePoint.Client.Runtime.dll"
-Write-Host "CSOM libraries loaded successfully" -ForegroundColor Black -BackgroundColor Green
+try
+{
+    Add-Type –Path "$($DllsDir)\Microsoft.SharePoint.Client.dll" 
+    Add-Type –Path "$($DllsDir)\Microsoft.SharePoint.Client.Runtime.dll"   
+}
+catch
+{
+    Write-Host "Caught an exception while loading SPO CSOM assenblies:" -ForegroundColor Red
+    Write-Host "Exception Type: $($_.Exception.GetType().FullName)" -ForegroundColor Red
+    Write-Host "Exception Message: $($_.Exception.Message)" -ForegroundColor Red
+    return   
+}
+
 Write-Host
-Write-Host "Trying to authenticate to O365 site $O365SiteUrl ..." -ForegroundColor Black -BackgroundColor Yellow  
+Write-Host "Trying to authenticate to O365 site $O365SiteUrl ..." 
 $context = New-Object Microsoft.SharePoint.Client.ClientContext($O365SiteUrl) 
 $credentials = New-Object Microsoft.SharePoint.Client.SharePointOnlineCredentials($Username, $Password)
  
@@ -95,25 +133,37 @@ $context.Load($site)
 try
 {
   $context.ExecuteQuery()
-  Write-Host "Authenticated successfully" -ForegroundColor Black -BackgroundColor Green
 }
 catch
 {
-  Write-Host "Not able to authenticate to O365 site $O365SiteUrl - $_.Exception.Message" -ForegroundColor Black -BackgroundColor Red
+  Write-Host "Not able to authenticate to O365 site $O365SiteUrl" -ForegroundColor Red
+  Write-Host "Exception Type: $($_.Exception.GetType().FullName)" -ForegroundColor Red
+  Write-Host "Exception Message: $($_.Exception.Message)" -ForegroundColor Red
   return
 }
 
 $SPOWebTitle = $web.Title
-
+$CurrentDir = Split-Path -parent $MyInvocation.MyCommand.Path
+$TargetDir = $CurrentDir+"\Output"
 $SPOLists = @()
 $MissedLists = @()
 $ListsWithDiffItems = @()
 $Docs = @()
 
-$MossLists = Import-Csv -Path $MossListsFile
-Write-Host
-Write-Host "Loaded - $($MossLists.Count) list(s) from $($MossListsFile)" -ForegroundColor Black -BackgroundColor Green
-Write-Host
+
+
+$MossListsFile = $TargetDir+"\Lists.csv"
+if(Test-Path -Path $MossListsFile -PathType Leaf)
+{
+    $MossLists = Import-Csv -Path $MossListsFile
+    Write-Host
+    Write-Host "Loaded - $($MossLists.Count) list(s) from $($MossListsFile)" 
+}
+else
+{
+    throw "File $($MossListsFile) was not found - please run MOSS_ExportLists.ps1 first!"
+}
+
 
 foreach ($mosslist in $MossLists)
 {
@@ -156,7 +206,6 @@ foreach ($mosslist in $MossLists)
          else
          {  
             $LibraryDocs = @()
-
             $listurl = $o365Web+ $list.Title
             $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
             $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
@@ -174,8 +223,13 @@ foreach ($mosslist in $MossLists)
 
              if($LibraryDocs.Count -gt 0)
              {
-                 $CurrentDir = Split-Path -parent $MyInvocation.MyCommand.Path
-                 $SaveDir = $CurrentDir+"\SPO_Libraries"
+                 
+                 if(!(Test-Path $TargetDir))
+                 {
+                     New-Item -ItemType Directory -Force -Path $TargetDir|Out-Null
+                 }
+
+                 $SaveDir = $TargetDir+"\SPO_Libraries"
                  if(!(Test-Path $SaveDir))
                  {
                     New-Item -ItemType Directory -Force -Path $SaveDir|Out-Null
@@ -190,9 +244,7 @@ foreach ($mosslist in $MossLists)
                     Remove-Item $OutputFilePath
                  }
              
-                 $LibraryDocs|Export-Csv $OutputFilePath -NoTypeInformation
-                 Write-Host "Library [$($list.Title)] exported to: $OutputFilePath"
-                 Write-Host     
+                 $LibraryDocs|Export-Csv $OutputFilePath -NoTypeInformation     
              }
             
          }
@@ -206,35 +258,164 @@ foreach ($mosslist in $MossLists)
     
 }
 
-
-$SaveDir = Split-Path -parent $MyInvocation.MyCommand.Path
-
+$Tables = @()
 if($MissedLists.Count -gt 0)
 {
-   $OutputFileName = "SPO_"+$SPOWebTitle + "_MissedLists.csv"
-    $OutputFilePath = $SaveDir+"\"+$OutputFileName
-    #delete the file, If already exist!
-    if (Test-Path $OutputFilePath)
-     {
-        Remove-Item $OutputFilePath
-     }
-
-    $MissedLists|Export-Csv $OutputFilePath -NoTypeInformation
-    Write-Host "Missed lists report saved to: $OutputFilePath"
-    Write-Host 
+   Export-ToCsvFile -ListToExport $MissedLists -CsvFileName "MissingLists"
+   $Pre = "<h3>Missed Lists</h3>"
+   $table = $MissedLists|ConvertTo-Html -PreContent $Pre -Fragment -Property Url,Title
+   $table += "<td>"
+   $Tables += $table
 }
 
 if ($ListsWithDiffItems.Count -gt 0)
 {
-   $OutputFileName = "SPO_"+$SPOWebTitle + "_ListsWithDiffItems.csv"
-    $OutputFilePath = $SaveDir+"\"+$OutputFileName
-    #delete the file, If already exist!
-    if (Test-Path $OutputFilePath)
-     {
-        Remove-Item $OutputFilePath
-     }
-
-    $ListsWithDiffItems|Export-Csv $OutputFilePath -NoTypeInformation
-    Write-Host "Report for lists with different item count saved to: $OutputFilePath"
-    Write-Host 
+   Export-ToCsvFile -ListToExport $ListsWithDiffItems -CsvFileName "ModifiedLists"
+   $Pre = "<h3>Modified Lists</h3>"
+   $table = $ListsWithDiffItems|ConvertTo-Html -PreContent $Pre -Fragment Url,Title,SPOItemCount,MOSSItemCount
+   $table += "<td>"
+   $Tables += $table
 }
+
+
+$MossExportFolder = $TargetDir+"\MOSS_Libraries"
+$SPOExportFolder = $TargetDir+"\SPO_Libraries"
+
+$MossExportFiles = Get-ChildItem -Path $($MossExportFolder+"\*.*") -File -Include *.csv
+$MissedDocs = @()
+$ModifiedDocs = @()
+
+foreach ($mossfile in $MossExportFiles)
+{
+    if (Test-Path $($SPOExportFolder+"\$($mossfile.Name)"))
+    {
+        
+        $MossTable = Import-Csv -Path $mossfile.FullName
+        $SPOTable = Import-Csv -Path $($SPOExportFolder+"\$($mossfile.Name)")
+
+        $MossDocs=@{}
+        $SPODocs = @{}
+
+        foreach($line in $MossTable)
+        {
+            $MossDocs[$line.RelativeUrl]=$line
+        }
+
+        foreach($line in $SPOTable)
+        {
+            $SPODocs[$line.RelativeUrl]=$line
+        }
+
+        foreach ($doc in $MossDocs.Keys)
+        {
+            if($SPODocs.ContainsKey($doc))
+            {
+                $SPODocModDate = ($SPODocs.Item($doc)).Modified
+                $MOSSDocModDate = ($MossDocs.Item($doc)).Modified
+                $SPODocumentUrl = ($SPODocs.Item($doc)).Url
+                $DocumentName = ($SPODocs.Item($doc)).Name
+                $DocumentRelUrl = ($SPODocs.Item($doc)).RelativeUrl
+
+                $docobj=New-Object -TypeName PSObject
+                $docobj|Add-Member -Name "Name" -MemberType Noteproperty -Value $DocumentName
+                $docobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $DocumentRelUrl
+                $docobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $SPODocumentUrl
+                $docobj|Add-Member -Name "MossModified" -MemberType Noteproperty -Value $MOSSDocModDate
+                $docobj|Add-Member -Name "SPOModified" -MemberType Noteproperty -Value $SPODocModDate
+                 
+                if( $SPODocModDate -ne $MOSSDocModDate )
+                {
+                    $ModifiedDocs += $docobj  
+                }
+                else
+                {
+                    $OKDocs += $docobj  
+                } 
+
+            }
+            else
+            {
+                $MissedDocs += $MossDocs.Item($doc)
+            }
+        }
+        
+    }
+}
+
+if($MissedDocs.Count -gt 0)
+{
+   Export-ToCsvFile -ListToExport $MissedDocs -CsvFileName "MissingDocuments"
+   $Pre = "<h3>Missed Documents</h3>"
+   $table = $MissedDocs|ConvertTo-Html -PreContent $Pre -Fragment -Property Url
+   $table += "<td>"
+   $Tables += $table
+}
+        
+if($ModifiedDocs.Count -gt 0)
+{
+   Export-ToCsvFile -ListToExport $ModifiedDocs -CsvFileName "ModifiedDocuments"
+   $Pre = "<h3>Modified Documents</h3>"
+   $table = $ModifiedDocs|ConvertTo-Html -PreContent $Pre -Fragment -Property Url,MossModified,SPOModified
+   $table += "<td>"
+   $Tables += $table
+}
+
+$Head =
+@"
+    <style>
+	BODY {
+		font-family:Verdana; 
+		background-color:white; 
+		font-size:12px
+	}
+    TABLE {
+        border-width: 1px;
+        border-style: solid;
+        border-color: black;
+        border-collapse: collapse;
+     }
+     TH {
+        font-size: 16px;
+        font-weight: bold;
+        text-align: left;
+        color:white;
+        font-family:Verdana;
+        padding:5px;
+        border-top:.5pt solid #93CDDD;
+        border-right:.5pt solid #93CDDD;
+        border-bottom:.5pt solid #93CDDD;
+        border-left:.5pt solid #93CDDD;
+        background:#4BACC6;
+     }
+     TD {
+        font-size:12px;
+        color:black;
+        text-decoration:none;
+        padding:5px;
+        font-family:Verdana;
+        border-top:.5pt solid #93CDDD;
+        border-right:.5pt solid #93CDDD;
+        border-left:.5pt solid #93CDDD;
+        border-bottom:.5pt solid #93CDDD;
+     }
+    </style>
+"@
+
+$Body = @"
+    <h3>Missing and modified lists/documents for site $($O365SiteUrl)
+    <td>
+    <br>
+    <div align="right"><B>Report generated at $(get-date)</b></div><hr color=black height=10px align=left width=100%>
+	<br>
+"@
+
+$HtmlReportFilePath = $CurrentDir+"\Report.html"
+if($Tables)
+{
+    $Body += $Tables
+    ConvertTo-Html -Head $Head -Body $Body -Title "Missing/modified items"|Out-File $HtmlReportFilePath
+    Write-Host
+    Write-Host "Report saved to: $HtmlReportFilePath" -ForegroundColor Green
+}
+
+Write-Host "Done!" -ForegroundColor Green
