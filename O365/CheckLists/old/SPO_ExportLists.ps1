@@ -89,9 +89,8 @@ function Export-ToCsvFile
      }
              
      $ListToExport|Export-Csv $OutputFilePath -NoTypeInformation
-     Write-Host
      Write-Host "File saved to: $OutputFilePath"
-               
+     Write-Host          
    }
 }
 
@@ -102,25 +101,14 @@ if ($PSVersionTable.PSVersion -lt [Version]"3.0") {
 }
 
 $Password = $UserPassword |ConvertTo-SecureString -AsPlainText -force
-Write-Host
-Write-Host "Loading SPO CSOM assemblies..."
+Write-Host "Load CSOM libraries" -ForegroundColor Black -BackgroundColor Yellow
 $Dir = Split-Path -parent $MyInvocation.MyCommand.Path
 $DllsDir = $Dir+"\DLL"
-try
-{
-    Add-Type –Path "$($DllsDir)\Microsoft.SharePoint.Client.dll" 
-    Add-Type –Path "$($DllsDir)\Microsoft.SharePoint.Client.Runtime.dll"   
-}
-catch
-{
-    Write-Host "Caught an exception while loading SPO CSOM assenblies:" -ForegroundColor Red
-    Write-Host "Exception Type: $($_.Exception.GetType().FullName)" -ForegroundColor Red
-    Write-Host "Exception Message: $($_.Exception.Message)" -ForegroundColor Red
-    return   
-}
-
+Add-Type –Path "$($DllsDir)\Microsoft.SharePoint.Client.dll" 
+Add-Type –Path "$($DllsDir)\Microsoft.SharePoint.Client.Runtime.dll"
+Write-Host "CSOM libraries loaded successfully" -ForegroundColor Black -BackgroundColor Green
 Write-Host
-Write-Host "Trying to authenticate to O365 site $O365SiteUrl ..." 
+Write-Host "Trying to authenticate to O365 site $O365SiteUrl ..." -ForegroundColor Black -BackgroundColor Yellow  
 $context = New-Object Microsoft.SharePoint.Client.ClientContext($O365SiteUrl) 
 $credentials = New-Object Microsoft.SharePoint.Client.SharePointOnlineCredentials($Username, $Password)
  
@@ -133,12 +121,11 @@ $context.Load($site)
 try
 {
   $context.ExecuteQuery()
+  Write-Host "Authenticated successfully" -ForegroundColor Black -BackgroundColor Green
 }
 catch
 {
-  Write-Host "Not able to authenticate to O365 site $O365SiteUrl" -ForegroundColor Red
-  Write-Host "Exception Type: $($_.Exception.GetType().FullName)" -ForegroundColor Red
-  Write-Host "Exception Message: $($_.Exception.Message)" -ForegroundColor Red
+  Write-Host "Not able to authenticate to O365 site $O365SiteUrl - $_.Exception.Message" -ForegroundColor Black -BackgroundColor Red
   return
 }
 
@@ -157,7 +144,8 @@ if(Test-Path -Path $MossListsFile -PathType Leaf)
 {
     $MossLists = Import-Csv -Path $MossListsFile
     Write-Host
-    Write-Host "Loaded - $($MossLists.Count) list(s) from $($MossListsFile)" 
+    Write-Host "Loaded - $($MossLists.Count) list(s) from $($MossListsFile)" -ForegroundColor Black -BackgroundColor Green
+    Write-Host
 }
 else
 {
@@ -171,7 +159,7 @@ foreach ($mosslist in $MossLists)
     $O365SiteUrl = $O365SiteUrl.TrimEnd('/')+"/"
     $O365SiteUrl -match "https?://.*?/"|Out-Null
     $O365RootUrl = $Matches[0]
-    #TO_DO: replace MOSS web url with SPO web url
+
     $mossWeb = $mosslist.WebUrl
     $match=$mossWeb -match "https?://.*?/"
     $o365Web = ($mossWeb).Replace($Matches[0],$O365RootUrl)
@@ -414,8 +402,6 @@ if($Tables)
 {
     $Body += $Tables
     ConvertTo-Html -Head $Head -Body $Body -Title "Missing/modified items"|Out-File $HtmlReportFilePath
-    Write-Host
-    Write-Host "Report saved to: $HtmlReportFilePath" -ForegroundColor Green
 }
 
 Write-Host "Done!" -ForegroundColor Green

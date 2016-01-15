@@ -7,11 +7,11 @@
     [string]$SPOExportFolder
 )
 
-function Create-Report
+function Export-ToCsvFile
 {
     param(
         [Object[]]$ListToExport,
-        $ReportFileName
+        $CsvFileName
     )
 
    if($ListToExport.Count -gt 0)
@@ -23,7 +23,7 @@ function Create-Report
         New-Item -ItemType Directory -Force -Path $SaveDir|Out-Null
      }
                     
-     $OutputFileName = $ReportFileName +".csv"
+     $OutputFileName = $CsvFileName +".csv"
      $OutputFilePath = $SaveDir+"\"+$OutputFileName        
      if (Test-Path $OutputFilePath)
      {
@@ -31,24 +31,21 @@ function Create-Report
      }
              
      $ListToExport|Export-Csv $OutputFilePath -NoTypeInformation
-     Write-Host "Report saved to: $OutputFilePath"
+     Write-Host "File saved to: $OutputFilePath"
      Write-Host          
    }
 }
 
 
 $MossExportFiles = Get-ChildItem -Path $($MossExportFolder+"\*.*") -File -Include *.csv
-$SPOExportFiles = @()
+$MissedDocs = @()
+$ModifiedDocs = @()
 
 foreach ($mossfile in $MossExportFiles)
 {
     if (Test-Path $($SPOExportFolder+"\$($mossfile.Name)"))
     {
-        Write-Host "=========================================================="
-        $MissedDocs = @()
-        $ModifiedDocs = @()
-        $OKDocs = @()
-
+        
         $MossTable = Import-Csv -Path $mossfile.FullName
         $SPOTable = Import-Csv -Path $($SPOExportFolder+"\$($mossfile.Name)")
 
@@ -97,24 +94,17 @@ foreach ($mossfile in $MossExportFiles)
                 $MissedDocs += $MossDocs.Item($doc)
             }
         }
-
-
-        if($MissedDocs.Count -gt 0)
-        {
-            Create-Report -ListToExport $MissedDocs -ReportFileName $($mossfile.Name+"_missed")
-        }
         
-        if($ModifiedDocs.Count -gt 0)
-        {
-            Create-Report -ListToExport $ModifiedDocs -ReportFileName $($mossfile.Name+"_modified")
-        }
+    }
+}
+
+if($MissedDocs.Count -gt 0)
+{
+   Export-ToCsvFile -ListToExport $MissedDocs -CsvFileName "MissingDocuments"
+}
         
-        Write-Host "=========================================================="
-        Write-Host
-    }
-    else
-    {
-        Write-Host "SPO export file not found: $($SPOExportFolder+"\$($mossfile.Name)")" -ForegroundColor Yellow
-    }
+if($ModifiedDocs.Count -gt 0)
+{
+   Export-ToCsvFile -ListToExport $ModifiedDocs -CsvFileName "ModifiedDocuments"
 }
 
