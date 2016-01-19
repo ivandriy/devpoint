@@ -11,6 +11,8 @@ Parameters:
 
 -MossSiteUrl - URL of MOSS site collection, example - http://mysite
 
+-AllSubWebs - optional parameter, in case if specified - export will go through all subwebs under MOSS site. If not specified - only root web is exported
+
 Output:
 
 Csv file (Lists.csv) saved to Output folder in the script execution location - it contains all lists metadata.
@@ -24,7 +26,9 @@ Files name format is next:
 
 Usage:
 
-.\MOSS_ExportLists.ps1 -MossSiteUrl http://mysite
+.\MOSS_ExportLists.ps1 -MossSiteUrl http://mysite - exports all lists from site http://mysite
+
+.\MOSS_ExportLists.ps1 -MossSiteUrl http://mysite -AllSubWebs - exports all lists from site http://mysite and it's subwebs
 
 ===============================================================================================================================================================================
 
@@ -44,6 +48,8 @@ Parameters:
 
 -UserPassword -Office365 user password
 
+-AllSubWebs - optional parameter, in case if specified - export will go through all subwebs under SPO site. If not specified - only root web is exported.
+
 Output:
 
 4 Csv files saved on Output folder (located in the script execution folder):
@@ -62,4 +68,6 @@ Report.html - html page which contains information about all modified or missed 
 
 Usage:
 
-.\SPO_ExportLists.ps1 -O365SiteUrl https://mysite.sharepoint.com -UserName myusername@mytenant.onmicrosoft.com -UserPassword *****
+.\SPO_ExportLists.ps1 -O365SiteUrl https://mysite.sharepoint.com -UserName myusername@mytenant.onmicrosoft.com -UserPassword ***** - exports all lists from site https://mysite.sharepoint.com
+
+.\SPO_ExportLists.ps1 -O365SiteUrl https://mysite.sharepoint.com -UserName myusername@mytenant.onmicrosoft.com -UserPassword ***** -AllSubWebs - exports all lists from site https://mysite.sharepoint.com and it's subwebs

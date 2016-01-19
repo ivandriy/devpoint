@@ -1,7 +1,7 @@
 TO-DO:
-1. Not having to replace url name 
-2. Can you include the Modified Date of missing files in the report?
-3. Our output html never included the modified compares 
+1. Not having to replace url name -
+2. Can you include the Modified Date of missing files in the report? +
+3. Our output html never included the modified compares ?
 4. Possible to run the process against a subsite?
-5. Log processing into files
-6. Processed statistic (files, lists, subsites/sites) on top of report
+5. Log processing into files +
+6. Processed statistic (files, lists, subsites/sites) on top of report +
