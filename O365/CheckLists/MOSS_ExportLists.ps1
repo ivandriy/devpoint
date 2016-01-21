@@ -2,9 +2,7 @@
 (
     [parameter(Mandatory=$true)]
     [string]$MossSiteUrl,
-
-    [switch]
-    $AllSubWebs
+    [switch]$SingleWeb
 )
 
 function Export-ToCsvFile
@@ -37,8 +35,16 @@ function Export-ToCsvFile
 }
 
 
-if ($PSVersionTable.PSVersion -gt [Version]"2.0") {
-  powershell -Version 2 -File $MyInvocation.MyCommand.Definition $MossSiteUrl
+if ($PSVersionTable.PSVersion -gt [Version]"2.0") 
+{
+  if($SingleWeb)
+  {
+    powershell -Version 2 -File $MyInvocation.MyCommand.Definition $MossSiteUrl -SingleWeb
+  }  
+  else
+  {
+    powershell -Version 2 -File $MyInvocation.MyCommand.Definition $MossSiteUrl
+  }
   exit
 }
 
@@ -63,15 +69,60 @@ $systemlibs =@("Converted Forms", "Customized Reports", "Form Templates",
                                "Style Library", "Theme Gallery", "Web Part Gallery", "wfpub","User Information List","Workflows","Workflow History","Tasks")
 
 $MossLists = @()
+$Docs = @()
 $CurrentDir = Split-Path -parent $MyInvocation.MyCommand.Path
 $TargetDir = $CurrentDir+"\Output"
 
-$site = New-Object Microsoft.SharePoint.SPSite($MossSiteUrl)
-
 Write-Host
 Write-Host "Starting export lists from site: $MossSiteUrl"
-if($AllSubWebs)
+
+if($SingleWeb)
 {
+        $web = (New-Object Microsoft.SharePoint.SPSite($MossSiteUrl)).OpenWeb()
+        foreach($list in $web.Lists)
+        {
+            if((-not ($systemlibs -Contains $list.Title)) -and ($list.ItemCount -gt 0))
+            {
+                $listobj=New-Object -TypeName PSObject
+                $webUrl = $web.URL+"/"
+                $listobj| Add-Member -Name "WebURL" -MemberType Noteproperty -Value $webUrl
+                $listobj| Add-Member -Name "Title" -MemberType Noteproperty -Value $list.Title
+                $listurl= $web.URL +"/"+ $list.RootFolder.Url
+                $listobj| Add-Member -Name "Url" -MemberType NoteProperty -Value $listurl
+                $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
+                $listobj| Add-Member -Name "ItemCount" -MemberType NoteProperty -Value $list.ItemCount
+
+                if($list.BaseTemplate -eq "DocumentLibrary")
+                {
+                    $listobj| Add-Member -Name "Type" -MemberType NoteProperty -Value "Library"
+                    
+                    foreach($item in $list.Items)
+                    {
+                        $itemobj=New-Object -TypeName PSObject
+                        $itemobj|Add-Member -Name "Name" -MemberType Noteproperty -Value $item["Name"]                        
+                        $itemobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $item["ServerUrl"]
+                        $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]                        
+                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $item["Modified"]                        
+                        $Docs += $itemobj
+                    }
+                                          
+                }
+                else
+                {
+                    $listobj| Add-Member -Name "Type" -MemberType NoteProperty -Value "List"
+                    $listobj| Add-Member -Name "ItemsFilePath" -MemberType NoteProperty -Value ""
+                    
+                }  
+                
+                $MossLists += $listobj
+            }   
+        }
+        $web.Dispose()
+     
+}
+else
+{
+    $site = New-Object Microsoft.SharePoint.SPSite($MossSiteUrl)
     foreach ($web in $site.AllWebs)
     {
     
@@ -91,7 +142,6 @@ if($AllSubWebs)
 
                 if($list.BaseTemplate -eq "DocumentLibrary")
                 {
-                    $Docs = @()
                     $listobj| Add-Member -Name "Type" -MemberType NoteProperty -Value "Library"
                     
                     foreach($item in $list.Items)
@@ -103,25 +153,7 @@ if($AllSubWebs)
                         $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $item["Modified"]                        
                         $Docs += $itemobj
                     }
-                    
-                    if(!(Test-Path $TargetDir))
-                    {
-                        New-Item -ItemType Directory -Force -Path $TargetDir|Out-Null
-                    }
-                    $SaveDir = $TargetDir+"\MOSS_Libraries"
-                    if(!(Test-Path $SaveDir))
-                    {
-                        New-Item -ItemType Directory -Force -Path $SaveDir|Out-Null
-                    }
-                    
-                    $OutputFileName = $web.Title +"_"+$list.Title+".csv"
-                    $OutputFilePath = $SaveDir+"\"+$OutputFileName
-                    $listobj| Add-Member -Name "ItemsFilePath" -MemberType NoteProperty -Value $OutputFilePath
-                    if (Test-Path $OutputFilePath)
-                     {
-                        Remove-Item $OutputFilePath
-                     }
-                     $Docs|Export-Csv $OutputFilePath -NoTypeInformation                      
+                                         
                 }
                 else
                 {
@@ -137,76 +169,19 @@ if($AllSubWebs)
     
     }
 }
-else
-{
-        $web = $site.RootWeb
-        $webobj=$site.OpenWeb()
-        foreach($list in $web.Lists)
-        {
-            if((-not ($systemlibs -Contains $list.Title)) -and ($list.ItemCount -gt 0))
-            {
-                $listobj=New-Object -TypeName PSObject
-                $webUrl = $web.URL+"/"
-                $listobj| Add-Member -Name "WebURL" -MemberType Noteproperty -Value $webUrl
-                $listobj| Add-Member -Name "Title" -MemberType Noteproperty -Value $list.Title
-                $listurl= $web.URL +"/"+ $list.RootFolder.Url
-                $listobj| Add-Member -Name "Url" -MemberType NoteProperty -Value $listurl
-                $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
-                $listobj| Add-Member -Name "ItemCount" -MemberType NoteProperty -Value $list.ItemCount
-
-                if($list.BaseTemplate -eq "DocumentLibrary")
-                {
-                    $Docs = @()
-                    $listobj| Add-Member -Name "Type" -MemberType NoteProperty -Value "Library"
-                    
-                    foreach($item in $list.Items)
-                    {
-                        $itemobj=New-Object -TypeName PSObject
-                        $itemobj|Add-Member -Name "Name" -MemberType Noteproperty -Value $item["Name"]                        
-                        $itemobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $item["ServerUrl"]
-                        $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]                        
-                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $item["Modified"]                        
-                        $Docs += $itemobj
-                    }
-                    
-                    if(!(Test-Path $TargetDir))
-                    {
-                        New-Item -ItemType Directory -Force -Path $TargetDir|Out-Null
-                    }
-                    $SaveDir = $TargetDir+"\MOSS_Libraries"
-                    if(!(Test-Path $SaveDir))
-                    {
-                        New-Item -ItemType Directory -Force -Path $SaveDir|Out-Null
-                    }
-                    
-                    $OutputFileName = $web.Title +"_"+$list.Title+".csv"
-                    $OutputFilePath = $SaveDir+"\"+$OutputFileName
-                    $listobj| Add-Member -Name "ItemsFilePath" -MemberType NoteProperty -Value $OutputFilePath
-                    if (Test-Path $OutputFilePath)
-                     {
-                        Remove-Item $OutputFilePath
-                     }
-                     $Docs|Export-Csv $OutputFilePath -NoTypeInformation                      
-                }
-                else
-                {
-                    $listobj| Add-Member -Name "Type" -MemberType NoteProperty -Value "List"
-                    $listobj| Add-Member -Name "ItemsFilePath" -MemberType NoteProperty -Value ""
-                    
-                }  
-                
-                $MossLists += $listobj
-            }   
-        }
-        $webobj.Dispose()
-     
-}
 
 if($MossLists.Count -gt 0)
 {
     Export-ToCsvFile -ListToExport $MossLists -CsvFileName "Lists"
     Write-Host
     Write-Host "Exported: $($MossLists.Count) list(s)"
+}
+
+if($Docs.Count -gt 0)
+{
+    Export-ToCsvFile -ListToExport $Docs -CsvFileName "MossDocuments"
+    Write-Host
+    Write-Host "Exported: $($Docs.Count) document(s)"
 }
 
 Write-Host

@@ -10,7 +10,7 @@
     [string]$UserPassword,
 
     [switch]
-    $AllSubWebs
+    $SingleWeb
 )
 
 #############FUNCTIONS###############
@@ -160,8 +160,16 @@ function Write-ToLogFile
 ##############MAIN##################
 
 #Check if PS runs on version 3.0
-if ($PSVersionTable.PSVersion -lt [Version]"3.0") {
-  powershell -Version 3 -File $MyInvocation.MyCommand.Definition $MossListsFile $O365SiteUrl $UserName $UserPassword
+if ($PSVersionTable.PSVersion -lt [Version]"3.0") 
+{
+  if($SingleWeb)
+  {
+    powershell -Version 3 -File $MyInvocation.MyCommand.Definition $MossListsFile $O365SiteUrl $UserName $UserPassword -SingleWeb
+  }
+  else
+  {
+    powershell -Version 3 -File $MyInvocation.MyCommand.Definition $MossListsFile $O365SiteUrl $UserName $UserPassword
+  }  
   exit
 }
 
@@ -225,6 +233,7 @@ $SPOLists = @()
 $MissedLists = @()
 $ListsWithDiffItems = @()
 $Docs = @()
+$LibraryDocs = @()
 
 
 $MossListsFile = $TargetDir+"\Lists.csv"
@@ -245,16 +254,16 @@ foreach ($mosslist in $MossLists)
 {
     $O365SiteUrl = $O365SiteUrl.TrimEnd('/')+"/"
     $mossWeb = $mosslist.WebUrl
-    if($AllSubWebs)
+    if($SingleWeb)
+    {
+        $o365Web = $O365SiteUrl
+    }
+    else
     {
         $O365SiteUrl -match "https?://.*?/"|Out-Null
         $O365RootUrl = $Matches[0]
         $match=$mossWeb -match "https?://.*?/"
         $o365Web = ($mossWeb).Replace($Matches[0],$O365RootUrl)
-    }
-    else
-    {
-        $o365Web = $O365SiteUrl
     }
     
     if($mosslist.Title -eq "Shared Documents")
@@ -300,7 +309,7 @@ foreach ($mosslist in $MossLists)
          }
          else
          {  
-            $LibraryDocs = @()
+            
             Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
             $listurl = $o365Web+ $list.Title
             $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
@@ -318,35 +327,7 @@ foreach ($mosslist in $MossLists)
             foreach ($subFolder in $list.RootFolder.Folders)
              {
                 $LibraryDocs += Recurse -Folder $subFolder -Context $context
-             }
-
-             if($LibraryDocs.Count -gt 0)
-             {
-                 
-                 if(!(Test-Path $TargetDir))
-                 {
-                     New-Item -ItemType Directory -Force -Path $TargetDir|Out-Null
-                 }
-
-                 $SaveDir = $TargetDir+"\SPO_Libraries"
-                 if(!(Test-Path $SaveDir))
-                 {
-                    New-Item -ItemType Directory -Force -Path $SaveDir|Out-Null
-                 }
-                    
-                 $OutputFileName = $webTitle +"_"+$list.Title+".csv"
-                 $OutputFilePath = $SaveDir+"\"+$OutputFileName
-             
-                 $listobj| Add-Member -Name "ItemsFilePath" -MemberType NoteProperty -Value $OutputFilePath
-                 if (Test-Path $OutputFilePath)
-                 {
-                    Remove-Item $OutputFilePath
-                 }
-             
-                 $LibraryDocs|Export-Csv $OutputFilePath -NoTypeInformation
-                 Write-ToLogFile -Message "Exported: $($LibraryDocs.Count) documents into $($OutputFilePath)" -Path $LogFilePath -Level Info    
-             }
-            
+             }            
          }
                   
 
@@ -359,6 +340,11 @@ foreach ($mosslist in $MossLists)
     
 }
 #endregion
+
+if($LibraryDocs.Count -gt 0)
+{
+    Export-ToCsvFile -ListToExport $LibraryDocs -CsvFileName "SPODocuments"
+}
 
 #region Exporting SPO lists
 $Tables = @()
@@ -383,38 +369,37 @@ if ($ListsWithDiffItems.Count -gt 0)
 }
 #endregion
 
-$MossExportFolder = $TargetDir+"\MOSS_Libraries"
-$SPOExportFolder = $TargetDir+"\SPO_Libraries"
-
-$MossExportFiles = Get-ChildItem -Path $($MossExportFolder+"\*.*") -File -Include *.csv
+#region Comparing documents
 $MissedDocs = @()
 $ModifiedDocs = @()
+$MossDocumentsFile = $TargetDir+"\MossDocuments.csv"
 
-#region Comparing documents
-foreach ($mossfile in $MossExportFiles)
+Write-Host
+Write-ToLogFile -Message "Loading MOSS documents from: $($MossDocumentsFile)" -Path $LogFilePath -Level Info
+if(Test-Path $MossDocumentsFile)
 {
-    Write-Host
-    Write-ToLogFile -Message "Loading MOSS library docs from: $($mossfile.FullName)" -Path $LogFilePath -Level Info
-    if (Test-Path $($SPOExportFolder+"\$($mossfile.Name)"))
-    {
-        Write-ToLogFile -Message "Loading SPO library docs from: $($SPOExportFolder)\$($mossfile.Name)" -Path $LogFilePath -Level Info
-        $MossTable = Import-Csv -Path $mossfile.FullName
-        $SPOTable = Import-Csv -Path $($SPOExportFolder+"\$($mossfile.Name)")
+    $MossTable = Import-Csv -Path $MossDocumentsFile    
+}
+else
+{
+    throw "File $($MossDocumentsFile) was not found - please run MOSS_ExportLists.ps1 first!"
+}
 
-        $MossDocs=@{}
-        $SPODocs = @{}
+$MossDocs=@{}
+$SPODocs = @{}
 
-        foreach($line in $MossTable)
-        {
-            $MossDocs[$line.RelativeUrl]=$line
-        }
+foreach($line in $MossTable)
+{
+    $MossDocs[$line.RelativeUrl]=$line
+}
 
-        foreach($line in $SPOTable)
-        {
-            $SPODocs[$line.RelativeUrl]=$line
-        }
+foreach($doc in $LibraryDocs)
+{
+    $SPODocs[$doc.RelativeUrl]=$doc
+}
 
-        foreach ($doc in $MossDocs.Keys)
+
+foreach ($doc in $MossDocs.Keys)
         {
 
             if($SPODocs.ContainsKey($doc))
@@ -454,13 +439,7 @@ foreach ($mossfile in $MossExportFiles)
                 Write-ToLogFile -Message "Document was not found: $($doc)" -Path $LogFilePath -Level Warn
             }
         }
-        
-    }
-    else
-    {
-        Write-ToLogFile -Message "SPO library file not exits: $($SPOExportFolder)\$($mossfile.Name)" -Path $LogFilePath -Level Warn
-    }
-}
+
 
 if($MissedDocs.Count -gt 0)
 {

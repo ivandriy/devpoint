@@ -1,9 +1,9 @@
 "WebURL","Title","Url","LastModified","ItemCount","Type","ItemsFilePath"
 "http://lst-app/","Announcements","http://lst-app/Lists/Announcements","4/13/2015 6:38:18 PM","1","List",""
-"http://lst-app/","Documents","http://lst-app/Documents","12/23/2015 8:21:05 AM","4","Library","C:\scripts\MOSS\Output\MOSS_Libraries\MyNewTitle_Documents.csv"
-"http://lst-app/","MigrationTest","http://lst-app/MigrationTest","12/29/2015 7:07:22 PM","6","Library","C:\scripts\MOSS\Output\MOSS_Libraries\MyNewTitle_MigrationTest.csv"
+"http://lst-app/","Documents","http://lst-app/Documents","12/23/2015 8:21:05 AM","4","Library",
+"http://lst-app/","MigrationTest","http://lst-app/MigrationTest","12/29/2015 7:07:22 PM","6","Library",
 "http://lst-app/","Reporting Metadata","http://lst-app/Lists/Reporting Metadata","4/13/2015 6:38:10 PM","11","List",""
 "http://lst-app/subsite1/","Announcements","http://lst-app/subsite1/Lists/Announcements","4/24/2015 1:29:35 PM","1","List",""
-"http://lst-app/subsite1/","Shared Documents","http://lst-app/subsite1/Shared Documents","4/24/2015 1:30:10 PM","1","Library","C:\scripts\MOSS\Output\MOSS_Libraries\Test subsite_Shared Documents.csv"
+"http://lst-app/subsite1/","Shared Documents","http://lst-app/subsite1/Shared Documents","4/24/2015 1:30:10 PM","1","Library",
 "http://lst-app/subsite2/","Announcements","http://lst-app/subsite2/Lists/Announcements","4/25/2015 2:28:10 PM","1","List",""
-"http://lst-app/subsite2/","Shared Documents","http://lst-app/subsite2/Shared Documents","4/25/2015 2:32:02 PM","2","Library","C:\scripts\MOSS\Output\MOSS_Libraries\Test subsite2_Shared Documents.csv"
+"http://lst-app/subsite2/","Shared Documents","http://lst-app/subsite2/Shared Documents","4/25/2015 2:32:02 PM","2","Library",
