@@ -265,15 +265,7 @@ foreach ($mosslist in $MossLists)
         $match=$mossWeb -match "https?://.*?/"
         $o365Web = ($mossWeb).Replace($Matches[0],$O365RootUrl)
     }
-    
-    if($mosslist.Title -eq "Shared Documents")
-    {
-        $listTitle = "Documents"
-    }
-    else
-    {
-        $listTitle = $mosslist.Title
-    }
+    $listTitle = $mosslist.Title
     $context = New-Object Microsoft.SharePoint.Client.ClientContext($o365Web)  
     $context.Credentials = $credentials
     [Microsoft.SharePoint.Client.Web]$web = $context.Web

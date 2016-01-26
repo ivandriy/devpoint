@@ -79,6 +79,8 @@ Write-Host "Starting export lists from site: $MossSiteUrl"
 if($SingleWeb)
 {
         $web = (New-Object Microsoft.SharePoint.SPSite($MossSiteUrl)).OpenWeb()
+        $regionalSettings = $web.RegionalSettings
+        $timeZone = $regionalSettings.TimeZone
         foreach($list in $web.Lists)
         {
             if((-not ($systemlibs -Contains $list.Title)) -and ($list.ItemCount -gt 0))
@@ -101,8 +103,10 @@ if($SingleWeb)
                         $itemobj=New-Object -TypeName PSObject
                         $itemobj|Add-Member -Name "Name" -MemberType Noteproperty -Value $item["Name"]                        
                         $itemobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $item["ServerUrl"]
-                        $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]                        
-                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $item["Modified"]                        
+                        $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]
+                        $localModified = $item["Modified"]
+                        $utcModified = $timeZone.LocalTimeToUTC($localModified)                        
+                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $utcModified                        
                         $Docs += $itemobj
                     }
                                           
@@ -125,7 +129,9 @@ else
     $site = New-Object Microsoft.SharePoint.SPSite($MossSiteUrl)
     foreach ($web in $site.AllWebs)
     {
-    
+        
+        $regionalSettings = $web.RegionalSettings
+        $timeZone = $regionalSettings.TimeZone
         $webobj=$site.OpenWeb()
         foreach($list in $web.Lists)
         {
@@ -149,8 +155,10 @@ else
                         $itemobj=New-Object -TypeName PSObject
                         $itemobj|Add-Member -Name "Name" -MemberType Noteproperty -Value $item["Name"]                        
                         $itemobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $item["ServerUrl"]
-                        $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]                        
-                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $item["Modified"]                        
+                        $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]
+                        $localModified = $item["Modified"]
+                        $utcModified = $timeZone.LocalTimeToUTC($localModified)                                                                      
+                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $utcModified                        
                         $Docs += $itemobj
                     }
                                          
