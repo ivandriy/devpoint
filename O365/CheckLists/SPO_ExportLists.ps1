@@ -289,8 +289,6 @@ foreach ($mosslist in $MossLists)
          $context.ExecuteQuery()
          
          $webTitle = $web.Title
-         $regionalSettings = $web.RegionalSettings
-         $timeZone = $regionalSettings.TimeZone
          if($mosslist.Type -eq "List")
          {
             Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
