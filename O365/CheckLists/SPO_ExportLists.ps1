@@ -36,7 +36,7 @@ function Recurse
             
             foreach($subfolder in $thisFolder.Folders)
                 {
-                    $AllFiles += Recurse -Folder $subfolder -Context $Context 
+                    $AllFiles += Recurse -Folder $subfolder -Context $Context
                 }
         }
 
@@ -62,10 +62,17 @@ function Get-FolderFiles
 
         $fileobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $file.ServerRelativeUrl
         $fileobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $fileUrl
+        $utcModified = $file.TimeLastModified
+        
+        $item = $file.ListItemAllFields
+        $Context.Load($item)
+        $Context.ExecuteQuery()
+        $localModified = $item["Modified"]
 
-        $fileobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $file.TimeLastModified
+        $fileobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $localModified
+        $fileobj|Add-Member -Name "UtcModified" -MemberType Noteproperty -Value $utcModified
         $files +=$fileobj
-        Write-ToLogFile -Message "Document loaded. Name: $($file.ServerRelativeUrl); Last Modified: $($file.TimeLastModified)" -Path $LogFilePath -Level Info                          
+        Write-ToLogFile -Message "Document loaded. Name: $($file.ServerRelativeUrl); Last Modified: $($localModified)" -Path $LogFilePath -Level Info                          
     }
     return $files
 }
@@ -282,6 +289,8 @@ foreach ($mosslist in $MossLists)
          $context.ExecuteQuery()
          
          $webTitle = $web.Title
+         $regionalSettings = $web.RegionalSettings
+         $timeZone = $regionalSettings.TimeZone
          if($mosslist.Type -eq "List")
          {
             Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
@@ -399,6 +408,10 @@ foreach ($doc in $MossDocs.Keys)
                 
                 $SPODocModDate = ($SPODocs.Item($doc)).Modified
                 $MOSSDocModDate = ($MossDocs.Item($doc)).Modified
+
+                $SPODocModDateUtc = ($SPODocs.Item($doc)).UtcModified
+                $MOSSDocModDateUtc = ($MossDocs.Item($doc)).UtcModified
+
                 $SPODocumentUrl = ($SPODocs.Item($doc)).Url
                 $DocumentName = ($SPODocs.Item($doc)).Name
                 $DocumentRelUrl = ($SPODocs.Item($doc)).RelativeUrl
@@ -411,8 +424,10 @@ foreach ($doc in $MossDocs.Keys)
                 $docobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $SPODocumentUrl
                 $docobj|Add-Member -Name "MossModified" -MemberType Noteproperty -Value $MOSSDocModDate
                 $docobj|Add-Member -Name "SPOModified" -MemberType Noteproperty -Value $SPODocModDate
+                $docobj|Add-Member -Name "MossUtcModified" -MemberType Noteproperty -Value $MOSSDocModDateUtc
+                $docobj|Add-Member -Name "SPOUtcModified" -MemberType Noteproperty -Value $SPODocModDateUtc
                  
-                if( $SPODocModDate -ne $MOSSDocModDate )
+                if( $SPODocModDateUtc -ne $MOSSDocModDateUtc )
                 {
                     $ModifiedDocs += $docobj
                     Write-ToLogFile -Message "Last modified differs! SPO: $($SPODocModDate); MOSS: $($MOSSDocModDate)" -Path $LogFilePath -Level Warn

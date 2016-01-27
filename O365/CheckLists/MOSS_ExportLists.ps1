@@ -106,7 +106,8 @@ if($SingleWeb)
                         $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]
                         $localModified = $item["Modified"]
                         $utcModified = $timeZone.LocalTimeToUTC($localModified)                        
-                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $utcModified                        
+                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $localModified
+                        $itemobj|Add-Member -Name "UtcModified" -MemberType Noteproperty -Value $utcModified                                                
                         $Docs += $itemobj
                     }
                                           
@@ -158,7 +159,8 @@ else
                         $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]
                         $localModified = $item["Modified"]
                         $utcModified = $timeZone.LocalTimeToUTC($localModified)                                                                      
-                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $utcModified                        
+                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $localModified
+                        $itemobj|Add-Member -Name "UtcModified" -MemberType Noteproperty -Value $utcModified                        
                         $Docs += $itemobj
                     }
                                          
