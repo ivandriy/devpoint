@@ -165,6 +165,8 @@ function Write-ToLogFile
 #endregion
 
 ##############MAIN##################
+Write-Host
+Write-Host "Current script version - #9" -ForegroundColor Green -BackgroundColor Black
 
 #Check if PS runs on version 3.0
 if ($PSVersionTable.PSVersion -lt [Version]"3.0") 
@@ -272,12 +274,19 @@ foreach ($mosslist in $MossLists)
         $match=$mossWeb -match "https?://.*?/"
         $o365Web = ($mossWeb).Replace($Matches[0],$O365RootUrl)
     }
+
     $listTitle = $mosslist.Title
     $context = New-Object Microsoft.SharePoint.Client.ClientContext($o365Web)  
     $context.Credentials = $credentials
     [Microsoft.SharePoint.Client.Web]$web = $context.Web
+
+    $context.Load($web)
+    $context.ExecuteQuery()
+    $webTitle = $web.Title
+    $webRelUrl = $web.ServerRelativeUrl
+
     [Microsoft.SharePoint.Client.List]$list = $web.Lists.GetByTitle($listTitle)
-    Write-ToLogFile -Message "Loading list $($listTitle) on $o365Web" -Path $LogFilePath -Level Info
+    Write-ToLogFile -Message "Trying to find list $($listTitle) on $o365Web by title" -Path $LogFilePath -Level Info
     $context.Load($list)
     try
     {
@@ -285,10 +294,6 @@ foreach ($mosslist in $MossLists)
          $listobj=New-Object -TypeName PSObject
          $listobj| Add-Member -Name "WebURL" -MemberType Noteproperty -Value $o365Web
          $listobj| Add-Member -Name "Title" -MemberType Noteproperty -Value $list.Title
-         $context.Load($web)
-         $context.ExecuteQuery()
-         
-         $webTitle = $web.Title
          if($mosslist.Type -eq "List")
          {
             Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
@@ -333,11 +338,80 @@ foreach ($mosslist in $MossLists)
     }
     catch
     {
-        $MissedLists += $mosslist
-        Write-ToLogFile -Message "List with title: $($listTitle) wasn't found on $($o365Web)" -Path $LogFilePath -Level Warn
+        
+        if($webRelUrl -eq "/")
+        {
+            $RelUrl = "$($mosslist.RelativeUrl)"   
+        }
+        else
+        {
+            $RelUrl = $webRelUrl+"/$($mosslist.RelativeUrl)"    
+        }
+        
+        Write-ToLogFile -Message "Trying to find list $($listTitle) on web $($o365Web) by relative url $($RelUrl)" -Path $LogFilePath -Level Info
+        [Microsoft.SharePoint.Client.List]$list = $web.GetList($RelUrl)
+        $context.Load($list)
+        try
+        {
+                 $context.ExecuteQuery();
+                 $listobj=New-Object -TypeName PSObject
+                 $listobj| Add-Member -Name "WebURL" -MemberType Noteproperty -Value $o365Web
+                 $listobj| Add-Member -Name "Title" -MemberType Noteproperty -Value $list.Title
+                 $context.Load($web)
+                 $context.ExecuteQuery()
+         
+                 $webTitle = $web.Title
+                 Write-Host $list.ParentWebUrl
+                 if($mosslist.Type -eq "List")
+                 {
+                    Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
+                    $listurl = $o365Web+"/$($mosslist.RelativeUrl)"
+                    $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
+                    $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
+                    Write-ToLogFile -Message "LastItemModifiedDate: $($list.LastItemModifiedDate)" -Path $LogFilePath -Level Info
+                    Write-ToLogFile -Message "Items: $($list.ItemCount)" -Path $LogFilePath -Level Info
+                    if($list.ItemCount -ne $mosslist.ItemCount)
+                    {
+                        $listobj| Add-Member -Name "SPOItemCount" -MemberType NoteProperty -Value $list.ItemCount
+                        $listobj| Add-Member -Name "MOSSItemCount" -MemberType NoteProperty -Value $mosslist.ItemCount
+                        $ListsWithDiffItems += $listobj
+                        Write-ToLogFile -Message "List items count differs! SPO count: [$($list.ItemCount)] MOSS count: [$($mosslist.ItemCount)]" -Path $LogFilePath -Level Warn
+                    }
+            
+                 }
+                 else
+                 {  
+            
+                    Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
+                    $listurl = $o365Web+"/$($mosslist.RelativeUrl)"
+                    $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
+                    $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
+                    $listobj| Add-Member -Name "ItemCount" -MemberType NoteProperty -Value $list.ItemCount
+
+                    Write-ToLogFile -Message "Last date modified: $($list.LastItemModifiedDate)" -Path $LogFilePath -Level Info
+                    Write-ToLogFile -Message "Items: $($list.ItemCount)" -Path $LogFilePath -Level Info
+
+                    $context.Load($list.RootFolder)
+                    $context.ExecuteQuery()
+                    $LibraryDocs += Get-FolderFiles -Folder $list.RootFolder -Context $context
+                    $context.Load($list.RootFolder.Folders)
+                    $context.ExecuteQuery()
+                    foreach ($subFolder in $list.RootFolder.Folders)
+                     {
+                        $LibraryDocs += Recurse -Folder $subFolder -Context $context
+                     }            
+                 }
+              
+            }
+        catch
+        {
+            $MissedLists += $mosslist
+            Write-ToLogFile -Message "List with title: $($listTitle) wasn't found on $($o365Web)" -Path $LogFilePath -Level Warn
+         }    
     }
-    
+                
 }
+    
 #endregion
 
 if($LibraryDocs.Count -gt 0)
@@ -386,6 +460,7 @@ else
 
 $MossDocs=@{}
 $SPODocs = @{}
+$OKDocs = @()
 
 foreach($line in $MossTable)
 {
@@ -407,8 +482,8 @@ foreach ($doc in $MossDocs.Keys)
                 $SPODocModDate = ($SPODocs.Item($doc)).Modified
                 $MOSSDocModDate = ($MossDocs.Item($doc)).Modified
 
-                $SPODocModDateUtc = ($SPODocs.Item($doc)).UtcModified
-                $MOSSDocModDateUtc = ($MossDocs.Item($doc)).UtcModified
+                $SPODocModDateUtc = [System.DateTime]::Parse(($SPODocs.Item($doc)).UtcModified)
+                $MOSSDocModDateUtc = [System.DateTime]::Parse(($MossDocs.Item($doc)).UtcModified)
 
                 $SPODocumentUrl = ($SPODocs.Item($doc)).Url
                 $DocumentName = ($SPODocs.Item($doc)).Name
@@ -425,16 +500,21 @@ foreach ($doc in $MossDocs.Keys)
                 $docobj|Add-Member -Name "MossUtcModified" -MemberType Noteproperty -Value $MOSSDocModDateUtc
                 $docobj|Add-Member -Name "SPOUtcModified" -MemberType Noteproperty -Value $SPODocModDateUtc
                  
-                if( $SPODocModDateUtc -ne $MOSSDocModDateUtc )
+                if($SPODocModDateUtc -gt $MOSSDocModDateUtc)
                 {
                     $ModifiedDocs += $docobj
-                    Write-ToLogFile -Message "Last modified differs! SPO: $($SPODocModDate); MOSS: $($MOSSDocModDate)" -Path $LogFilePath -Level Warn
+                    Write-ToLogFile -Message "Document was modified on SPO! SPO LastModified(UTC): $($SPODocModDateUtc.ToUniversalTime()); MOSS LastModified(UTC): $($MOSSDocModDateUtc.ToUniversalTime())" -Path $LogFilePath -Level Warn
                       
+                }
+                elseif ($SPODocModDateUtc -lt $MOSSDocModDateUtc)
+                {
+                   $ModifiedDocs += $docobj
+                    Write-ToLogFile -Message "Document was modified on MOSS! MOSS LastModified(UTC): $($MOSSDocModDateUtc.ToUniversalTime()); SPO LastModified(UTC): $($SPODocModDateUtc.ToUniversalTime()) " -Path $LogFilePath -Level Warn 
                 }
                 else
                 {
                     $OKDocs += $docobj
-                    Write-ToLogFile -Message "Last modified ok! SPO: $($SPODocModDate); MOSS: $($MOSSDocModDate)" -Path $LogFilePath -Level Info
+                    Write-ToLogFile -Message "Last modified ok! SPO LastModified(UTC): $($SPODocModDateUtc.ToUniversalTime()); MOSS LastModified(UTC): $($MOSSDocModDateUtc.ToUniversalTime())" -Path $LogFilePath -Level Info
                 } 
 
             }

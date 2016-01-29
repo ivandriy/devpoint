@@ -34,6 +34,8 @@ function Export-ToCsvFile
    }
 }
 
+Write-Host
+Write-Host "Current script version - #9" -ForegroundColor Green -BackgroundColor Black
 
 if ($PSVersionTable.PSVersion -gt [Version]"2.0") 
 {
@@ -91,6 +93,7 @@ if($SingleWeb)
                 $listobj| Add-Member -Name "Title" -MemberType Noteproperty -Value $list.Title
                 $listurl= $web.URL +"/"+ $list.RootFolder.Url
                 $listobj| Add-Member -Name "Url" -MemberType NoteProperty -Value $listurl
+                $listobj| Add-Member -Name "RelativeUrl" -MemberType NoteProperty -Value $list.RootFolder.Url
                 $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
                 $listobj| Add-Member -Name "ItemCount" -MemberType NoteProperty -Value $list.ItemCount
 
@@ -115,7 +118,6 @@ if($SingleWeb)
                 else
                 {
                     $listobj| Add-Member -Name "Type" -MemberType NoteProperty -Value "List"
-                    $listobj| Add-Member -Name "ItemsFilePath" -MemberType NoteProperty -Value ""
                     
                 }  
                 
@@ -144,6 +146,7 @@ else
                 $listobj| Add-Member -Name "Title" -MemberType Noteproperty -Value $list.Title
                 $listurl= $web.URL +"/"+ $list.RootFolder.Url
                 $listobj| Add-Member -Name "Url" -MemberType NoteProperty -Value $listurl
+                $listobj| Add-Member -Name "RelativeUrl" -MemberType NoteProperty -Value $list.RootFolder.Url
                 $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
                 $listobj| Add-Member -Name "ItemCount" -MemberType NoteProperty -Value $list.ItemCount
 
@@ -168,7 +171,6 @@ else
                 else
                 {
                     $listobj| Add-Member -Name "Type" -MemberType NoteProperty -Value "List"
-                    $listobj| Add-Member -Name "ItemsFilePath" -MemberType NoteProperty -Value ""
                     
                 }  
                 
