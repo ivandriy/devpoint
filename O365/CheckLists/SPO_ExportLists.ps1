@@ -58,19 +58,20 @@ function Get-FolderFiles
     {
         $fileobj=New-Object -TypeName PSObject
         $fileobj|Add-Member -Name "Name" -MemberType Noteproperty -Value $file.name
-        $fileUrl = $O365SiteUrl.TrimEnd('/')+$file.ServerRelativeUrl
-
+        $O365SiteUrl = $O365SiteUrl.TrimEnd('/')
+        $O365SiteUrl -match "https?://.*?/"|Out-Null
+        $O365RootUrl = $Matches[0]
+        $fileUrl = $O365RootUrl+$file.ServerRelativeUrl
+        
         $fileobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $file.ServerRelativeUrl
         $fileobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $fileUrl
-        $utcModified = $file.TimeLastModified
         
         $item = $file.ListItemAllFields
         $Context.Load($item)
         $Context.ExecuteQuery()
         $localModified = $item["Modified"]
 
-        $fileobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $localModified
-        $fileobj|Add-Member -Name "UtcModified" -MemberType Noteproperty -Value $utcModified
+        $fileobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $localModified        
         $files +=$fileobj
         Write-ToLogFile -Message "Document loaded. Name: $($file.ServerRelativeUrl); Last Modified: $($localModified)" -Path $LogFilePath -Level Info                          
     }
@@ -165,8 +166,6 @@ function Write-ToLogFile
 #endregion
 
 ##############MAIN##################
-Write-Host
-Write-Host "Current script version - #9" -ForegroundColor Green -BackgroundColor Black
 
 #Check if PS runs on version 3.0
 if ($PSVersionTable.PSVersion -lt [Version]"3.0") 
@@ -181,6 +180,9 @@ if ($PSVersionTable.PSVersion -lt [Version]"3.0")
   }  
   exit
 }
+
+Write-Host
+Write-Host "Current script version - #10" -ForegroundColor Green -BackgroundColor Black
 
 #Variables init
 $CurrentDir = Split-Path -parent $MyInvocation.MyCommand.Path
@@ -478,43 +480,47 @@ foreach ($doc in $MossDocs.Keys)
 
             if($SPODocs.ContainsKey($doc))
             {
-                
-                $SPODocModDate = ($SPODocs.Item($doc)).Modified
-                $MOSSDocModDate = ($MossDocs.Item($doc)).Modified
-
-                $SPODocModDateUtc = [System.DateTime]::Parse(($SPODocs.Item($doc)).UtcModified)
-                $MOSSDocModDateUtc = [System.DateTime]::Parse(($MossDocs.Item($doc)).UtcModified)
-
                 $SPODocumentUrl = ($SPODocs.Item($doc)).Url
                 $DocumentName = ($SPODocs.Item($doc)).Name
                 $DocumentRelUrl = ($SPODocs.Item($doc)).RelativeUrl
 
                 Write-ToLogFile -Message "Processing document: $($DocumentRelUrl)" -Path $LogFilePath -Level Info
+                
+                $SPODocModDate = ($SPODocs.Item($doc)).Modified
+                $MOSSDocModDate = ($MossDocs.Item($doc)).Modified
+                Write-ToLogFile -Message "SPODocModDate: $($SPODocModDate); MOSSDocModDate: $($MOSSDocModDate)" -Path $LogFilePath -Level Info
+                                
+                [System.Globalization.CultureInfo]$provider = [System.Globalization.CultureInfo]::InvariantCulture
+                $format = "M/d/yyyy h:mm:ss tt"
+                $format2 = "M/d/yyyy HH:mm:ss"
+                [System.DateTime]$parsedDateMoss = get-date
+                [System.DateTime]$parsedDateSpo = get-date
+                [DateTime]::TryParseExact($MOSSDocModDate,$format,$provider,[System.Globalization.DateTimeStyles]::None,[ref]$parsedDateMoss)|Out-Null
+                [DateTime]::TryParseExact($SPODocModDate,$format,$provider,[System.Globalization.DateTimeStyles]::None,[ref]$parsedDateSpo)|Out-Null
+                Write-ToLogFile -Message "SPODocModDateParsed: $($parsedDateSpo); MOSSDocModDateParsed: $($parsedDateMoss)" -Path $LogFilePath -Level Info
 
                 $docobj=New-Object -TypeName PSObject
                 $docobj|Add-Member -Name "Name" -MemberType Noteproperty -Value $DocumentName
                 $docobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $DocumentRelUrl
                 $docobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $SPODocumentUrl
-                $docobj|Add-Member -Name "MossModified" -MemberType Noteproperty -Value $MOSSDocModDate
-                $docobj|Add-Member -Name "SPOModified" -MemberType Noteproperty -Value $SPODocModDate
-                $docobj|Add-Member -Name "MossUtcModified" -MemberType Noteproperty -Value $MOSSDocModDateUtc
-                $docobj|Add-Member -Name "SPOUtcModified" -MemberType Noteproperty -Value $SPODocModDateUtc
+                $docobj|Add-Member -Name "MossModified" -MemberType Noteproperty -Value $parsedDateMoss.ToString($format2)
+                $docobj|Add-Member -Name "SPOModified" -MemberType Noteproperty -Value $parsedDateSpo.ToString($format2)
                  
-                if($SPODocModDateUtc -gt $MOSSDocModDateUtc)
+                if($parsedDateSpo -gt $parsedDateMoss)
                 {
                     $ModifiedDocs += $docobj
-                    Write-ToLogFile -Message "Document was modified on SPO! SPO LastModified(UTC): $($SPODocModDateUtc.ToUniversalTime()); MOSS LastModified(UTC): $($MOSSDocModDateUtc.ToUniversalTime())" -Path $LogFilePath -Level Warn
+                    Write-ToLogFile -Message "Document was modified on SPO! SPO LastModified: $($parsedDateSPO.ToString($format2)); MOSS LastModified: $($parsedDateMOSS.ToString($format2))" -Path $LogFilePath -Level Warn
                       
                 }
-                elseif ($SPODocModDateUtc -lt $MOSSDocModDateUtc)
+                elseif ($parsedDateSpo -lt $parsedDateMoss)
                 {
                    $ModifiedDocs += $docobj
-                    Write-ToLogFile -Message "Document was modified on MOSS! MOSS LastModified(UTC): $($MOSSDocModDateUtc.ToUniversalTime()); SPO LastModified(UTC): $($SPODocModDateUtc.ToUniversalTime()) " -Path $LogFilePath -Level Warn 
+                    Write-ToLogFile -Message "Document was modified on MOSS! MOSS LastModified: $($parsedDateMOSS.ToString($format2)); SPO LastModified: $($parsedDateSPO.ToString($format2)) " -Path $LogFilePath -Level Warn 
                 }
                 else
                 {
                     $OKDocs += $docobj
-                    Write-ToLogFile -Message "Last modified ok! SPO LastModified(UTC): $($SPODocModDateUtc.ToUniversalTime()); MOSS LastModified(UTC): $($MOSSDocModDateUtc.ToUniversalTime())" -Path $LogFilePath -Level Info
+                    Write-ToLogFile -Message "Last modified ok! SPO LastModified: $($parsedDateSPO.ToString($format2)); MOSS LastModified: $($parsedDateMOSS.ToString($format2))" -Path $LogFilePath -Level Info
                 } 
 
             }

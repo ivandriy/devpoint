@@ -34,8 +34,7 @@ function Export-ToCsvFile
    }
 }
 
-Write-Host
-Write-Host "Current script version - #9" -ForegroundColor Green -BackgroundColor Black
+
 
 if ($PSVersionTable.PSVersion -gt [Version]"2.0") 
 {
@@ -50,6 +49,8 @@ if ($PSVersionTable.PSVersion -gt [Version]"2.0")
   exit
 }
 
+Write-Host
+Write-Host "Current script version - #10" -ForegroundColor Green -BackgroundColor Black
 
 Write-Host "Loading MOSS PowerShell assembly..."
 try
@@ -108,9 +109,10 @@ if($SingleWeb)
                         $itemobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $item["ServerUrl"]
                         $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]
                         $localModified = $item["Modified"]
-                        $utcModified = $timeZone.LocalTimeToUTC($localModified)                        
-                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $localModified
-                        $itemobj|Add-Member -Name "UtcModified" -MemberType Noteproperty -Value $utcModified                                                
+                        $format = "M/d/yyyy h:mm:ss tt"
+                        [System.DateTime]$parsedLocalModified = get-date
+                        [DateTime]::TryParseExact($localModified,$format,$provider,[System.Globalization.DateTimeStyles]::None,[ref]$parsedLocalModified)|Out-Null
+                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $parsedLocalModified.ToString($format)
                         $Docs += $itemobj
                     }
                                           
@@ -161,9 +163,10 @@ else
                         $itemobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $item["ServerUrl"]
                         $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]
                         $localModified = $item["Modified"]
-                        $utcModified = $timeZone.LocalTimeToUTC($localModified)                                                                      
-                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $localModified
-                        $itemobj|Add-Member -Name "UtcModified" -MemberType Noteproperty -Value $utcModified                        
+                        $format = "M/d/yyyy h:mm:ss tt"
+                        [System.DateTime]$parsedLocalModified = get-date
+                        [DateTime]::TryParseExact($localModified,$format,$provider,[System.Globalization.DateTimeStyles]::None,[ref]$parsedLocalModified)|Out-Null
+                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $parsedLocalModified.ToString($format)
                         $Docs += $itemobj
                     }
                                          
