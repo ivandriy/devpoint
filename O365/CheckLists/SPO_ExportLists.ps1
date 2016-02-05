@@ -61,8 +61,9 @@ function Get-FolderFiles
         $O365SiteUrl = $O365SiteUrl.TrimEnd('/')
         $O365SiteUrl -match "https?://.*?/"|Out-Null
         $O365RootUrl = $Matches[0]
+        $O365RootUrl = $O365RootUrl.TrimEnd('/')
         $fileUrl = $O365RootUrl+$file.ServerRelativeUrl
-        
+                
         $fileobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $file.ServerRelativeUrl
         $fileobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $fileUrl
         
@@ -182,7 +183,7 @@ if ($PSVersionTable.PSVersion -lt [Version]"3.0")
 }
 
 Write-Host
-Write-Host "Current script version - #10" -ForegroundColor Green -BackgroundColor Black
+Write-Host "Current script version - #11" -ForegroundColor Green -BackgroundColor Black
 
 #Variables init
 $CurrentDir = Split-Path -parent $MyInvocation.MyCommand.Path
@@ -190,6 +191,8 @@ $TargetDir = $CurrentDir+"\Output"
 $FormattedDate = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $LogFilePath = $TargetDir+"\SPO_ExportLists_$($FormattedDate).log"
 $DllsDir = $CurrentDir+"\DLL"
+
+Write-ToLogFile -Message "Current script version - #11" -Path $LogFilePath -Level Info
 
 #region Loading assemblies
 
@@ -488,11 +491,9 @@ foreach ($doc in $MossDocs.Keys)
                 
                 $SPODocModDate = ($SPODocs.Item($doc)).Modified
                 $MOSSDocModDate = ($MossDocs.Item($doc)).Modified
-                Write-ToLogFile -Message "SPODocModDate: $($SPODocModDate); MOSSDocModDate: $($MOSSDocModDate)" -Path $LogFilePath -Level Info
-                                
+                Write-ToLogFile -Message "SPODocModDate: $($SPODocModDate); MOSSDocModDate: $($MOSSDocModDate)" -Path $LogFilePath -Level Info                                
                 [System.Globalization.CultureInfo]$provider = [System.Globalization.CultureInfo]::InvariantCulture
-                $format = "M/d/yyyy h:mm:ss tt"
-                $format2 = "M/d/yyyy HH:mm:ss"
+                $format = "M/d/yyyy HH:mm:ss"
                 [System.DateTime]$parsedDateMoss = get-date
                 [System.DateTime]$parsedDateSpo = get-date
                 [DateTime]::TryParseExact($MOSSDocModDate,$format,$provider,[System.Globalization.DateTimeStyles]::None,[ref]$parsedDateMoss)|Out-Null
@@ -503,24 +504,24 @@ foreach ($doc in $MossDocs.Keys)
                 $docobj|Add-Member -Name "Name" -MemberType Noteproperty -Value $DocumentName
                 $docobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $DocumentRelUrl
                 $docobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $SPODocumentUrl
-                $docobj|Add-Member -Name "MossModified" -MemberType Noteproperty -Value $parsedDateMoss.ToString($format2)
-                $docobj|Add-Member -Name "SPOModified" -MemberType Noteproperty -Value $parsedDateSpo.ToString($format2)
+                $docobj|Add-Member -Name "MossModified" -MemberType Noteproperty -Value $parsedDateMoss.ToString($format)
+                $docobj|Add-Member -Name "SPOModified" -MemberType Noteproperty -Value $parsedDateSpo.ToString($format)
                  
                 if($parsedDateSpo -gt $parsedDateMoss)
                 {
                     $ModifiedDocs += $docobj
-                    Write-ToLogFile -Message "Document was modified on SPO! SPO LastModified: $($parsedDateSPO.ToString($format2)); MOSS LastModified: $($parsedDateMOSS.ToString($format2))" -Path $LogFilePath -Level Warn
+                    Write-ToLogFile -Message "Document was modified on SPO! SPO LastModified: $($parsedDateSPO.ToString($format)); MOSS LastModified: $($parsedDateMOSS.ToString($format))" -Path $LogFilePath -Level Warn
                       
                 }
                 elseif ($parsedDateSpo -lt $parsedDateMoss)
                 {
                    $ModifiedDocs += $docobj
-                    Write-ToLogFile -Message "Document was modified on MOSS! MOSS LastModified: $($parsedDateMOSS.ToString($format2)); SPO LastModified: $($parsedDateSPO.ToString($format2)) " -Path $LogFilePath -Level Warn 
+                    Write-ToLogFile -Message "Document was modified on MOSS! MOSS LastModified: $($parsedDateMOSS.ToString($format)); SPO LastModified: $($parsedDateSPO.ToString($format)) " -Path $LogFilePath -Level Warn 
                 }
                 else
                 {
                     $OKDocs += $docobj
-                    Write-ToLogFile -Message "Last modified ok! SPO LastModified: $($parsedDateSPO.ToString($format2)); MOSS LastModified: $($parsedDateMOSS.ToString($format2))" -Path $LogFilePath -Level Info
+                    Write-ToLogFile -Message "Last modified ok! SPO LastModified: $($parsedDateSPO.ToString($format)); MOSS LastModified: $($parsedDateMOSS.ToString($format))" -Path $LogFilePath -Level Info
                 } 
 
             }
