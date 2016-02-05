@@ -1,3 +1,0 @@
- <!--<add key="UserId" value="support.spo@miamiedu.onmicrosoft.com"></add>
-    <add key="Password" value="iamSPOxx!"></add>
-    <add key="HostWebUrl" value="https://miamiedu.sharepoint.com/"></add>-->
