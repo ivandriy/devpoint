@@ -183,7 +183,11 @@ if ($PSVersionTable.PSVersion -lt [Version]"3.0")
 }
 
 Write-Host
-Write-Host "Current script version - #11" -ForegroundColor Green -BackgroundColor Black
+Write-Host "Current script version - #12" -ForegroundColor Green -BackgroundColor Black
+$StartTime=Get-Date
+Write-Host
+Write-Host "Script started at $($StartTime)"
+$sw = [Diagnostics.Stopwatch]::StartNew()
 
 #Variables init
 $CurrentDir = Split-Path -parent $MyInvocation.MyCommand.Path
@@ -193,6 +197,7 @@ $LogFilePath = $TargetDir+"\SPO_ExportLists_$($FormattedDate).log"
 $DllsDir = $CurrentDir+"\DLL"
 
 Write-ToLogFile -Message "Current script version - #11" -Path $LogFilePath -Level Info
+Write-ToLogFile -Message "Script started at $($StartTime)" -Path $LogFilePath -Level Info
 
 #region Loading assemblies
 
@@ -284,93 +289,25 @@ foreach ($mosslist in $MossLists)
     $context = New-Object Microsoft.SharePoint.Client.ClientContext($o365Web)  
     $context.Credentials = $credentials
     [Microsoft.SharePoint.Client.Web]$web = $context.Web
-
     $context.Load($web)
-    $context.ExecuteQuery()
-    $webTitle = $web.Title
-    $webRelUrl = $web.ServerRelativeUrl
-
-    [Microsoft.SharePoint.Client.List]$list = $web.Lists.GetByTitle($listTitle)
-    Write-ToLogFile -Message "Trying to find list $($listTitle) on $o365Web by title" -Path $LogFilePath -Level Info
-    $context.Load($list)
     try
     {
-         $context.ExecuteQuery()
-         $listobj=New-Object -TypeName PSObject
-         $listobj| Add-Member -Name "WebURL" -MemberType Noteproperty -Value $o365Web
-         $listobj| Add-Member -Name "Title" -MemberType Noteproperty -Value $list.Title
-         if($mosslist.Type -eq "List")
-         {
-            Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
-            $listurl = $o365Web+"Lists/"+ $list.Title
-            $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
-            $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
-            Write-ToLogFile -Message "LastItemModifiedDate: $($list.LastItemModifiedDate)" -Path $LogFilePath -Level Info
-            Write-ToLogFile -Message "Items: $($list.ItemCount)" -Path $LogFilePath -Level Info
-            if($list.ItemCount -ne $mosslist.ItemCount)
+            $context.ExecuteQuery()
+            $webTitle = $web.Title
+            $webRelUrl = $web.ServerRelativeUrl
+            [Microsoft.SharePoint.Client.List]$list = $web.Lists.GetByTitle($listTitle)
+            Write-ToLogFile -Message "Trying to find list $($listTitle) on $o365Web by title" -Path $LogFilePath -Level Info
+            $context.Load($list)
+            try
             {
-                $listobj| Add-Member -Name "SPOItemCount" -MemberType NoteProperty -Value $list.ItemCount
-                $listobj| Add-Member -Name "MOSSItemCount" -MemberType NoteProperty -Value $mosslist.ItemCount
-                $ListsWithDiffItems += $listobj
-                Write-ToLogFile -Message "List items count differs! SPO count: [$($list.ItemCount)] MOSS count: [$($mosslist.ItemCount)]" -Path $LogFilePath -Level Warn
-            }
-            
-         }
-         else
-         {  
-            
-            Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
-            $listurl = $o365Web+ $list.Title
-            $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
-            $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
-            $listobj| Add-Member -Name "ItemCount" -MemberType NoteProperty -Value $list.ItemCount
-
-            Write-ToLogFile -Message "Last date modified: $($list.LastItemModifiedDate)" -Path $LogFilePath -Level Info
-            Write-ToLogFile -Message "Items: $($list.ItemCount)" -Path $LogFilePath -Level Info
-
-            $context.Load($list.RootFolder)
-            $context.ExecuteQuery()
-            $LibraryDocs += Get-FolderFiles -Folder $list.RootFolder -Context $context
-            $context.Load($list.RootFolder.Folders)
-            $context.ExecuteQuery()
-            foreach ($subFolder in $list.RootFolder.Folders)
-             {
-                $LibraryDocs += Recurse -Folder $subFolder -Context $context
-             }            
-         }
-                  
-
-    }
-    catch
-    {
-        
-        if($webRelUrl -eq "/")
-        {
-            $RelUrl = "$($mosslist.RelativeUrl)"   
-        }
-        else
-        {
-            $RelUrl = $webRelUrl+"/$($mosslist.RelativeUrl)"    
-        }
-        
-        Write-ToLogFile -Message "Trying to find list $($listTitle) on web $($o365Web) by relative url $($RelUrl)" -Path $LogFilePath -Level Info
-        [Microsoft.SharePoint.Client.List]$list = $web.GetList($RelUrl)
-        $context.Load($list)
-        try
-        {
-                 $context.ExecuteQuery();
+                 $context.ExecuteQuery()
                  $listobj=New-Object -TypeName PSObject
                  $listobj| Add-Member -Name "WebURL" -MemberType Noteproperty -Value $o365Web
                  $listobj| Add-Member -Name "Title" -MemberType Noteproperty -Value $list.Title
-                 $context.Load($web)
-                 $context.ExecuteQuery()
-         
-                 $webTitle = $web.Title
-                 Write-Host $list.ParentWebUrl
                  if($mosslist.Type -eq "List")
                  {
                     Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
-                    $listurl = $o365Web+"/$($mosslist.RelativeUrl)"
+                    $listurl = $o365Web+"Lists/"+ $list.Title
                     $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
                     $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
                     Write-ToLogFile -Message "LastItemModifiedDate: $($list.LastItemModifiedDate)" -Path $LogFilePath -Level Info
@@ -388,7 +325,7 @@ foreach ($mosslist in $MossLists)
                  {  
             
                     Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
-                    $listurl = $o365Web+"/$($mosslist.RelativeUrl)"
+                    $listurl = $o365Web+ $list.Title
                     $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
                     $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
                     $listobj| Add-Member -Name "ItemCount" -MemberType NoteProperty -Value $list.ItemCount
@@ -406,13 +343,89 @@ foreach ($mosslist in $MossLists)
                         $LibraryDocs += Recurse -Folder $subFolder -Context $context
                      }            
                  }
-              
+                  
+
             }
+            catch
+            {
+        
+                if($webRelUrl -eq "/")
+                {
+                    $RelUrl = "$($mosslist.RelativeUrl)"   
+                }
+                else
+                {
+                    $RelUrl = $webRelUrl+"/$($mosslist.RelativeUrl)"    
+                }
+        
+                Write-ToLogFile -Message "Trying to find list $($listTitle) on web $($o365Web) by relative url $($RelUrl)" -Path $LogFilePath -Level Info
+                [Microsoft.SharePoint.Client.List]$list = $web.GetList($RelUrl)
+                $context.Load($list)
+                try
+                {
+                         $context.ExecuteQuery();
+                         $listobj=New-Object -TypeName PSObject
+                         $listobj| Add-Member -Name "WebURL" -MemberType Noteproperty -Value $o365Web
+                         $listobj| Add-Member -Name "Title" -MemberType Noteproperty -Value $list.Title
+                         $context.Load($web)
+                         $context.ExecuteQuery()
+         
+                         $webTitle = $web.Title
+                         Write-Host $list.ParentWebUrl
+                         if($mosslist.Type -eq "List")
+                         {
+                            Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
+                            $listurl = $o365Web+"/$($mosslist.RelativeUrl)"
+                            $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
+                            $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
+                            Write-ToLogFile -Message "LastItemModifiedDate: $($list.LastItemModifiedDate)" -Path $LogFilePath -Level Info
+                            Write-ToLogFile -Message "Items: $($list.ItemCount)" -Path $LogFilePath -Level Info
+                            if($list.ItemCount -ne $mosslist.ItemCount)
+                            {
+                                $listobj| Add-Member -Name "SPOItemCount" -MemberType NoteProperty -Value $list.ItemCount
+                                $listobj| Add-Member -Name "MOSSItemCount" -MemberType NoteProperty -Value $mosslist.ItemCount
+                                $ListsWithDiffItems += $listobj
+                                Write-ToLogFile -Message "List items count differs! SPO count: [$($list.ItemCount)] MOSS count: [$($mosslist.ItemCount)]" -Path $LogFilePath -Level Warn
+                            }
+            
+                         }
+                         else
+                         {  
+            
+                            Write-ToLogFile -Message "List $($list.Title) loaded" -Path $LogFilePath -Level Info
+                            $listurl = $o365Web+"/$($mosslist.RelativeUrl)"
+                            $listobj| Add-Member -Name "Url" -MemberType Noteproperty -Value $listurl
+                            $listobj| Add-Member -Name "LastModified" -MemberType NoteProperty -Value $list.LastItemModifiedDate
+                            $listobj| Add-Member -Name "ItemCount" -MemberType NoteProperty -Value $list.ItemCount
+
+                            Write-ToLogFile -Message "Last date modified: $($list.LastItemModifiedDate)" -Path $LogFilePath -Level Info
+                            Write-ToLogFile -Message "Items: $($list.ItemCount)" -Path $LogFilePath -Level Info
+
+                            $context.Load($list.RootFolder)
+                            $context.ExecuteQuery()
+                            $LibraryDocs += Get-FolderFiles -Folder $list.RootFolder -Context $context
+                            $context.Load($list.RootFolder.Folders)
+                            $context.ExecuteQuery()
+                            foreach ($subFolder in $list.RootFolder.Folders)
+                             {
+                                $LibraryDocs += Recurse -Folder $subFolder -Context $context
+                             }            
+                         }
+              
+                    }
         catch
         {
             $MissedLists += $mosslist
             Write-ToLogFile -Message "List with title: $($listTitle) wasn't found on $($o365Web)" -Path $LogFilePath -Level Warn
          }    
+    }
+        
+    }
+    catch
+    {
+        Write-ToLogFile -Message "Web $($o365Web) wasn't found on SPO" -Path $LogFilePath -Level Warn
+        $MissedLists += $MossLists|Where-Object { $_.WebUrl –eq $mossWeb }
+        $MossLists = $MossLists|Where-Object { $_.WebUrl –ne $mossWeb }
     }
                 
 }
@@ -615,4 +628,12 @@ if($Tables)
     Write-Host "Report saved to: $HtmlReportFilePath" -ForegroundColor Green
 }
 #endregion
+$sw.Stop()
+Write-Host "Total execution time: $($sw.Elapsed.Hours) hours $($sw.Elapsed.Minutes) min $($sw.Elapsed.Seconds) sec"
+$FinishDate=Get-Date
+Write-Host "Script finished at $($FinishDate)"
 Write-Host "Done!" -ForegroundColor Green
+
+Write-ToLogFile -Message "Total execution time: $($sw.Elapsed.Hours) hours $($sw.Elapsed.Minutes) min $($sw.Elapsed.Seconds) sec" -Path $LogFilePath -Level Info
+Write-ToLogFile -Message "Script finished at $($FinishDate)" -Path $LogFilePath -Level Info
+Write-ToLogFile -Message "Done!" -Path $LogFilePath -Level Info
