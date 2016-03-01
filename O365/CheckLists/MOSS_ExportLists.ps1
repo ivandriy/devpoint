@@ -127,10 +127,9 @@ function Process-Lists
                         $itemRelUrl = $item["ServerUrl"]                       
                         $itemobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $itemRelUrl
                         $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]
-                        $localModified = $item["Modified"]
-                        $localModifiedFormated = $localModified.ToString($format)
-                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $localModifiedFormated
-                        Write-ToLogFile -Message "Document loaded. Name: $($itemRelUrl); LastModified: $($localModifiedFormated)" -Path $LogFilePath -Level Info 
+                        [string]$localModified = $item["Modified"]                        
+                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $localModified
+                        Write-ToLogFile -Message "Document loaded. Name: $($itemRelUrl); LastModified: $($localModified)" -Path $LogFilePath -Level Info 
                         $script:Docs += $itemobj
                     }
                                                               
@@ -197,7 +196,7 @@ if ($PSVersionTable.PSVersion -gt [Version]"2.0")
 }
 
 Write-Host
-Write-Host "Current script version - #12" -ForegroundColor Green -BackgroundColor Black
+Write-Host "Current script version - #13" -ForegroundColor Green -BackgroundColor Black
 $StartTime=Get-Date
 Write-Host
 Write-Host "Script started at $($StartTime)"
@@ -211,7 +210,7 @@ $FormattedDate = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $LogFilePath = $TargetDir+"\MOSS_ExportLists_$($FormattedDate).log"
 $format = "M/d/yyyy HH:mm:ss"
 
-Write-ToLogFile -Message "Current script version - #12" -Path $LogFilePath -Level Info
+Write-ToLogFile -Message "Current script version - #13" -Path $LogFilePath -Level Info
 Write-ToLogFile -Message "Script started at $($StartTime)" -Path $LogFilePath -Level Info
 Write-Host
 Write-ToLogFile -Message "Loading MOSS PowerShell assembly..." -Path $LogFilePath -Level Info -ConsoleOut
@@ -233,7 +232,8 @@ $systemlibs =@("Converted Forms", "Customized Reports", "Form Templates",
                               "Images", "List Template Gallery", "Master Page Gallery", "Pages",  
                                "Reporting Templates", "Site Assets", "Site Collection Documents", 
                                "Site Collection Images", "Site Pages", "Solution Gallery",  
-                               "Style Library", "Theme Gallery", "Web Part Gallery", "wfpub","User Information List","Workflows","Workflow History","Tasks")
+                               "Style Library", "Theme Gallery", "Web Part Gallery", "wfpub",
+                               "User Information List","Workflows","Workflow History","Tasks","Reporting Metadata")
 
 
 
