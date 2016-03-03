@@ -127,9 +127,13 @@ function Process-Lists
                         $itemRelUrl = $item["ServerUrl"]                       
                         $itemobj|Add-Member -Name "RelativeUrl" -MemberType Noteproperty -Value $itemRelUrl
                         $itemobj|Add-Member -Name "Url" -MemberType Noteproperty -Value $item["ows_EncodedAbsUrl"]
-                        [string]$localModified = $item["Modified"]                        
-                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $localModified
-                        Write-ToLogFile -Message "Document loaded. Name: $($itemRelUrl); LastModified: $($localModified)" -Path $LogFilePath -Level Info 
+                        $localModified = $item["Modified"]                        
+                        $format = "M/d/yyyy HH:mm:ss"
+                        [System.Globalization.CultureInfo]$provider = [System.Globalization.CultureInfo]::InvariantCulture
+                        [System.DateTime]$parsedLocalModified = get-date
+                        [DateTime]::TryParseExact($localModified,$format,$provider,[System.Globalization.DateTimeStyles]::None,[ref]$parsedLocalModified)|Out-Null
+                        $itemobj|Add-Member -Name "Modified" -MemberType Noteproperty -Value $parsedLocalModified.ToString($format)                                                                        
+                        Write-ToLogFile -Message "Document loaded. Name: $($itemRelUrl); LastModified: $($localModified) LastModifiedParsed: $($parsedLocalModified.ToString($format))" -Path $LogFilePath -Level Info                         
                         $script:Docs += $itemobj
                     }
                                                               
@@ -196,7 +200,7 @@ if ($PSVersionTable.PSVersion -gt [Version]"2.0")
 }
 
 Write-Host
-Write-Host "Current script version - #13" -ForegroundColor Green -BackgroundColor Black
+Write-Host "Current script version - #16" -ForegroundColor Green -BackgroundColor Black
 $StartTime=Get-Date
 Write-Host
 Write-Host "Script started at $($StartTime)"
@@ -210,7 +214,7 @@ $FormattedDate = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $LogFilePath = $TargetDir+"\MOSS_ExportLists_$($FormattedDate).log"
 $format = "M/d/yyyy HH:mm:ss"
 
-Write-ToLogFile -Message "Current script version - #13" -Path $LogFilePath -Level Info
+Write-ToLogFile -Message "Current script version - #16" -Path $LogFilePath -Level Info
 Write-ToLogFile -Message "Script started at $($StartTime)" -Path $LogFilePath -Level Info
 Write-Host
 Write-ToLogFile -Message "Loading MOSS PowerShell assembly..." -Path $LogFilePath -Level Info -ConsoleOut

@@ -183,7 +183,7 @@ if ($PSVersionTable.PSVersion -lt [Version]"3.0")
 }
 
 Write-Host
-Write-Host "Current script version - #12" -ForegroundColor Green -BackgroundColor Black
+Write-Host "Current script version - #16" -ForegroundColor Green -BackgroundColor Black
 $StartTime=Get-Date
 Write-Host
 Write-Host "Script started at $($StartTime)"
@@ -196,7 +196,7 @@ $FormattedDate = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $LogFilePath = $TargetDir+"\SPO_ExportLists_$($FormattedDate).log"
 $DllsDir = $CurrentDir+"\DLL"
 
-Write-ToLogFile -Message "Current script version - #11" -Path $LogFilePath -Level Info
+Write-ToLogFile -Message "Current script version - #16" -Path $LogFilePath -Level Info
 Write-ToLogFile -Message "Script started at $($StartTime)" -Path $LogFilePath -Level Info
 
 #region Loading assemblies
