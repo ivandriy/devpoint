@@ -9,5 +9,6 @@ Start-Sleep -Seconds 240
 $SQLVm|Stop-AzureVM -Force
 Start-Sleep -Seconds 240
 $DC|Stop-AzureVM -Force
-Write-Host "Finished!"
+Write-Host "Finished!" -ForegroundColor Green
 Write-Host "Done!"
+
