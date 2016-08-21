@@ -16,3 +16,4 @@ pu -> git push
 unstage -> git reset HEAD --
 last -> git log -1 HEAD
 logsimpe -> git log --pretty=oneline
+dec -> git log --decorate --graph --oneline
