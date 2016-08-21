@@ -1,5 +1,5 @@
 ﻿Set-AzureSubscription -SubscriptionName "Visual Studio Enterprise"
-Select-AzureSubscription -SubscriptionName "Visual Studio Enterprise" -Current
+Select-AzureSubscription -SubscriptionName "Visual Studio Enterprise" -Current -Verbose
 $MossVm=Get-AzureVM -ServiceName LST-APP -Name LST-APP
 $SQLVm=Get-AzureVM -ServiceName LST-DB -Name LST-DB
 $DC = Get-AzureVM -ServiceName LST-DC1 -Name LST-DC1
