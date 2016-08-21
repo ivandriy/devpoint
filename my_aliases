@@ -1,0 +1,18 @@
+Git command:
+git config --global alias.<alias> '<command> [options]'
+Example:
+git config --global alias.co checkout
+
+External command:
+git config --global alias.<alias> '!<command> [options]'
+Example:
+git config --global alias.visual '!gitk'
+=======================
+List of aliases:
+
+ci -> git commit
+st -> git status
+pu -> git push
+unstage -> git reset HEAD --
+last -> git log -1 HEAD
+logsimpe -> git log --pretty=oneline
