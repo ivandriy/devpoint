@@ -1,6 +1,4 @@
-﻿#Requires -Version 5.0
-
-
+﻿
 ###########FUNCTIONS###############
 function Get-Hash
 {
@@ -75,16 +73,92 @@ function Get-ProgramsFromRegistry
 
     return $ProgramsList
 }
+
+
+function Escape-JSONString($str){
+	if ($str -eq $null) {return ""}
+	$str = $str.ToString().Replace('"','\"').Replace('\','\\').Replace("`n",'\n').Replace("`r",'\r').Replace("`t",'\t')
+	return $str;
+}
+
+function ConvertTo-JSONFunc($maxDepth = 4,$forceArray = $false) {
+	begin {
+		$data = @()
+	}
+	process{
+		$data += $_
+	}
+	
+	end{
+	
+		if ($data.length -eq 1 -and $forceArray -eq $false) {
+			$value = $data[0]
+		} else {	
+			$value = $data
+		}
+
+		if ($value -eq $null) {
+			return "null"
+		}
+
+		
+
+		$dataType = $value.GetType().Name
+		
+		switch -regex ($dataType) {
+	            'String'  {
+					return  "`"{0}`"" -f (Escape-JSONString $value )
+				}
+	            '(System\.)?DateTime'  {return  "`"{0:yyyy-MM-dd}T{0:HH:mm:ss}`"" -f $value}
+	            'Int32|Double' {return  "$value"}
+				'Boolean' {return  "$value".ToLower()}
+	            '(System\.)?Object\[\]' { # array
+					
+					if ($maxDepth -le 0){return "`"$value`""}
+					
+					$jsonResult = ''
+					foreach($elem in $value){
+						#if ($elem -eq $null) {continue}
+						if ($jsonResult.Length -gt 0) {$jsonResult +=', '}				
+						$jsonResult += ($elem | ConvertTo-JSONFunc -maxDepth ($maxDepth -1))
+					}
+					return "[" + $jsonResult + "]"
+	            }
+				'(System\.)?Hashtable' { # hashtable
+					$jsonResult = ''
+					foreach($key in $value.Keys){
+						if ($jsonResult.Length -gt 0) {$jsonResult +=', '}
+						$jsonResult += 
+@"
+	"{0}": {1}
+"@ -f $key , ($value[$key] | ConvertTo-JSONFunc -maxDepth ($maxDepth -1) )
+					}
+					return "{" + $jsonResult + "}"
+				}
+	            default { #object
+					if ($maxDepth -le 0){return  "`"{0}`"" -f (Escape-JSONString $value)}
+					
+					return "{" +
+						(($value | Get-Member -MemberType *property | % { 
+@"
+	"{0}": {1}
+"@ -f $_.Name , ($value.($_.Name) | ConvertTo-JSONFunc -maxDepth ($maxDepth -1) )			
+					
+					}) -join ', ') + "}"
+	    		}
+		}
+	}
+}
+	
+
 ############MAIN##############
 $InstalledPrograms = @()
-$PowerShellVersion = $PSVersionTable.PSVersion.Major
-if($PowerShellVersion -lt 5)
+$PowerShellMajorVersion = $PSVersionTable.PSVersion.Major
+$PowerShellMinorVersion = $PSVersionTable.PSVersion.Minor
+if(($PowerShellMajorVersion -ge 5) -and ($PowerShellMinorVersion -ge 1))
 {
     $InstalledPrograms = Get-ProgramsFromRegistry
-}
-else
-{
-    $InstalledPrograms=Get-Package -ProviderName Programs|Select-Object -Property @{Name='DisplayName'; Expression={($_.Name)}} `
+    $InstalledPrograms += Get-Package -ProviderName Programs|Select-Object -Property @{Name='DisplayName'; Expression={($_.Name)}} `
                 ,@{Name='DisplayVersion'; Expression={($_.Version)}} `
                 ,@{Name='DisplayIcon'; Expression={($_.Metadata['DisplayIcon'])}}`
                 ,@{Name='InstallDate'; Expression={($_.Metadata['InstallDate'])}}`
@@ -94,6 +168,12 @@ else
                 ,@{Name='UninstallCommand'; Expression={($_.Metadata['UninstallString'])}}`
                 ,@{Name='PathToUninstall';Expression={Get-UninstallPath -InputString $($_.Metadata['UninstallString']) }} 
 }
+else
+{
+    $InstalledPrograms = Get-ProgramsFromRegistry      
+}
+
+$InstalledPrograms = $InstalledPrograms|Sort-Object -Property DisplayName -Unique
 
 $AllPrograms = @()
 foreach($program in $InstalledPrograms)
@@ -128,4 +208,12 @@ foreach($program in $InstalledPrograms)
     }
 }
 
-$AllPrograms|Select-Object -Property DisplayName,DisplayVersion,DisplayIcon,InstallDate,InstallLocation,Publisher,UninstallCommand,PathToUninstall,MD5Hash,SH1Hash,SH256Hash,DigitalSignature|ConvertTo-Json
+if($PowerShellMajorVersion -lt 3)
+{
+    $AllPrograms|Select-Object -Property DisplayName,DisplayVersion,DisplayIcon,InstallDate,InstallLocation,Publisher,UninstallCommand,PathToUninstall,MD5Hash,SH1Hash,SH256Hash,DigitalSignature|ConvertTo-JSONFunc
+}
+else
+{
+    $AllPrograms|Select-Object -Property DisplayName,DisplayVersion,DisplayIcon,InstallDate,InstallLocation,Publisher,UninstallCommand,PathToUninstall,MD5Hash,SH1Hash,SH256Hash,DigitalSignature|ConvertTo-Json
+}
+
