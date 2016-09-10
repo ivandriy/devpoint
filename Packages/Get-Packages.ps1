@@ -17,8 +17,11 @@ function Get-UninstallPath
     )
     [string]$UninstallPath = $null
     $Matches= $null
-    if($InputString -match '^"*(\w{1}:\\.*\.\w{3,}).*$')
-    {$UninstallPath=$Matches[1]}    
+    if($InputString)
+    {
+        if($InputString -match '^"*(\w{1}:\\.*\.\w{3,}).*$')
+        {$UninstallPath=$Matches[1]} 
+    }      
     return $UninstallPath
 }
 
@@ -216,4 +219,3 @@ else
 {
     $AllPrograms|Select-Object -Property DisplayName,DisplayVersion,DisplayIcon,InstallDate,InstallLocation,Publisher,UninstallCommand,PathToUninstall,MD5Hash,SH1Hash,SH256Hash,DigitalSignature|ConvertTo-Json
 }
-
