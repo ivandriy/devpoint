@@ -46,7 +46,7 @@ function Get-ProgramsFromRegistry
                         $ThisKey = $UninstallKey+"\\"+$key
                         $ThisSubKey = $RegBase.OpenSubKey($ThisKey)
                         $ProgramName = $ThisSubKey.GetValue("DisplayName")
-                        if([string]::IsNullOrWhiteSpace($ProgramName))                        
+                        if($ProgramName -eq '')                        
                         {
                             if(!($key.StartsWith('{')))
                             {
