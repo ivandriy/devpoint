@@ -46,18 +46,9 @@ function Get-ProgramsFromRegistry
                         $ThisKey = $UninstallKey+"\\"+$key
                         $ThisSubKey = $RegBase.OpenSubKey($ThisKey)
                         $ProgramName = $ThisSubKey.GetValue("DisplayName")
-                        if($ProgramName -eq '')                        
+                        if(($ProgramName -ne '') -and ($ProgramName -ne $null))                        
                         {
-                            if(!($key.StartsWith('{')))
-                            {
-                                $ProgramName = $key
-                            }
-                            else
-                            {
-                             continue
-                            }
-                        }                        
-                        $ProgramsList += New-Object -TypeName psobject -Property @{
+                            $ProgramsList += New-Object -TypeName psobject -Property @{
                                 DisplayName = $ProgramName
                                 DisplayVersion = $ThisSubKey.GetValue("DisplayVersion")
                                 DisplayIcon = $ThisSubKey.GetValue("DisplayIcon")                                
@@ -68,6 +59,8 @@ function Get-ProgramsFromRegistry
                                 UninstallString = $ThisSubKey.GetValue("UninstallString")
                                 PathToUninstall = Get-UninstallPath -InputString $ThisSubKey.GetValue("UninstallString")
                             }
+                        }                        
+                        
                     }
                 }
             }
