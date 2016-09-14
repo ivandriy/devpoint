@@ -46,7 +46,7 @@ function Get-ProgramsFromRegistry
                         $ThisKey = $UninstallKey+"\\"+$key
                         $ThisSubKey = $RegBase.OpenSubKey($ThisKey)
                         $ProgramName = $ThisSubKey.GetValue("DisplayName")
-                        if(($ProgramName -ne '') -and ($ProgramName -ne $null))                        
+                        if(($ProgramName -ne '') -and ($null -ne $ProgramName))                        
                         {
                             $ProgramsList += New-Object -TypeName psobject -Property @{
                                 DisplayName = $ProgramName
@@ -72,7 +72,7 @@ function Get-ProgramsFromRegistry
 
 
 function Escape-JSONString($str){
-	if ($str -eq $null) {return ""}
+	if ($null -eq  $str) {return ""}
 	$str = $str.ToString().Replace('"','\"').Replace('\','\\').Replace("`n",'\n').Replace("`r",'\r').Replace("`t",'\t')
 	return $str;
 }
@@ -93,7 +93,7 @@ function ConvertTo-JSONFunc($maxDepth = 4,$forceArray = $false) {
 			$value = $data
 		}
 
-		if ($value -eq $null) {
+		if ($null -eq  $value ) {
 			return "null"
 		}
 
