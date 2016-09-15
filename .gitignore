@@ -2,3 +2,5 @@
 *.png
 *.dll
 *.exe
+*.log
+*.csv
