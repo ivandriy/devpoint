@@ -1,0 +1,8 @@
+Parameters:
+SiteUrl - your SPO main site URL (like <domain>.sharepoint.com);
+UserName - SPO user name
+Password - SPO user password
+
+Usage:
+
+.\Get-CustomThemesSites.ps1 -SiteUrl https://domain.sharepoint.com -UserName user@domain.onmicrosoft.com -Password ****
