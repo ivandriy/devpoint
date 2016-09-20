@@ -40,7 +40,7 @@ function Print-Result
     }|ConvertTo-Json
 }
 
-Function Console-Prompt 
+function Console-Prompt 
 {
   param(
       [string[]]$choiceList,
