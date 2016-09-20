@@ -71,88 +71,28 @@ Configuration SysmonDSC {
                     GetScript = $GetScript
                     SetScript = $SetScript
                     TestScript = $TestScript
-                    Result  = $(Test-Path (Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath sysmon.exe));
+                    Result  = $(Test-Path (Join-Path -Path ($($Env:ChocolateyInstall)) -ChildPath '\lib\sysmon\tools\sysmon.exe') -PathType Leaf);
                 }
             }
             SetScript = {
-                try {
-                    # https://msdn.microsoft.com/en-us/library/system.io.path.gettempfilename%28v=vs.110%29.aspx
-                    $tmpfile = [System.IO.Path]::GetTempFileName()
-                    $null = Invoke-WebRequest -Uri 'https://live.sysinternals.com/Sysmon.exe' `
-                                      -OutFile $tmpfile -ErrorAction Stop
-                    Write-Verbose -Message 'Sucessfully downloaded Sysmon.exe'
-                    Unblock-File -Path $tmpfile -ErrorAction Stop
-                    $exefile = Join-Path -Path (Split-Path -Path $tmpfile -Parent) -ChildPath 'a.exe'
-                    if (Test-Path $exefile) {
-                        Remove-Item -Path $exefile -Force -ErrorAction Stop
-                    }
-                    $tmpfile | Rename-Item -NewName 'a.exe' -Force -ErrorAction Stop
-
-                } catch {
-                    Write-Verbose -Message "Something went wrong $($_.Exception.Message)"
-                }
+                Write-Verbose -Message "Download Sysmon using choco"
+                Choco Install -y sysmon --ignore-checksums
+                Write-Verbose -Message "Done!"
             }
-            TestScript = { 
-                $s = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath a.exe -ErrorAction SilentlyContinue
-                if (-not(Test-Path -Path $s -PathType Leaf)) {
-                    Write-Verbose -Message "Cannot find sysmon.exe in temp"
-                    return $false
-                }
-                if(
-                    (Get-FileHash -Path $s -Algorithm SHA256).Hash -eq 'E6BA49275B3EC33232D91741CAEF1B99A58460EEB4BC44F26086FE076FAD333A' -and
-                    (Get-AuthenticodeSignature -FilePath $s).Status.value__ -eq 0 # Valid
-                
-                ) {
-                    Write-Verbose -Message 'Successfully found a valid signed sysmon.exe'
+            TestScript = {
+                $sysmonPath = Join-Path $($Env:ChocolateyInstall) '\lib\sysmon\tools\sysmon.exe'
+                if(Test-Path -Path $sysmonPath -PathType Leaf) 
+                {
+                    Write-Verbose -Message "Sysmon is already exists in $sysmonPath"
                     return $true
-                } else {
-                    Write-Verbose -Message 'A valid signed sysmon.exe was not found'
+                } else 
+                {
+                    Write-Verbose -Message "Sysmon isn't exists"
                     return $false
                 }
             }
         }
-        Registry SysmonEULA {
-            Key = 'HKEY_USERS\S-1-5-18\Software\Sysinternals\System Monitor'
-            ValueName = 'EulaAccepted';
-            ValueType = 'DWORD'
-            ValueData = '1'
-            Ensure = 'Present'
-            Force = $true;
-
-        }
-        Script InstallSysmon {
-            GetScript = {
-                @{
-                    GetScript = $GetScript
-                    SetScript = $SetScript
-                    TestScript = $TestScript
-                    Result  = $(if (@(Get-Service -Name sysmon,sysmondrv).Count -eq 2) { $true } else { $false });
-                }
-            }
-            SetScript = {
-                $sysmonbin = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath a.exe
-                $s = Copy-Item -Path $sysmonbin -Destination "$($env:systemroot)\system32\sysmon.exe" -PassThru -Force
-                try {
-                    $null = Start-Process -FilePath $s -ArgumentList @('-i','-accepteula') -PassThru -NoNewWindow -ErrorAction Stop | Wait-Process
-                    Write-Verbose -Message 'Successfully installed sysmon'
-                } catch {
-                    throw $_
-                }
-            }
-            TestScript = { 
-                if(
-                    Get-WinEvent -ListLog * | Where LogName -eq 'Microsoft-Windows-Sysmon/Operational'
-                ) {
-                    Write-Verbose -Message "Sysmon is installed"
-                    return $true
-                } else {
-                    Write-Verbose -Message "Sysmon isn't installed"
-                    return $false
-                }
-            }
-           DependsOn = '[Script]DownloadSysmon','[Registry]SysmonEULA'
-        }
-        Script ConfigureSysmon {
+        Script SetupSysmon {
             GetScript = {
                 @{
                     GetScript = $GetScript
@@ -162,78 +102,40 @@ Configuration SysmonDSC {
                 }
             }
             SetScript = {
-                $s = "$($env:systemroot)\system32\sysmon.exe"
-                $null = Start-Process -FilePath  $s -ArgumentList @('-c','--') -PassThru -NoNewWindow | Wait-Process
-                $null = Start-Process -FilePath  $s -ArgumentList @('-c','C:\windows\temp\polSysmon.xml') -PassThru -NoNewWindow | Wait-Process
+                Write-Verbose -Message "Setup and start Sysmon services..."
+                $sysmonPath = Join-Path $Env:ChocolateyInstall "lib\sysmon\tools"
+                $configPath = Join-Path $sysmonPath "sysmon.xml"                
+                $sysmon = (Join-Path $sysmonPath "sysmon.exe")
+                $argsuments = "-i $configPath -accepteula"
+                $proc = Start-Process -FilePath $sysmon -ArgumentList $argsuments -WorkingDirectory $sysmonPath -PassThru -RedirectStandardError "$sysmonPath\error.log" -Wait
+                if($proc.ExitCode -ne 0)
+                {throw "Sysmon services are not started - check $sysmonPath\error.log for details"}
+                else
+                {
+                    while( ((Get-Service -Name Sysmon).Status -ne "Running") -and ((Get-Service -Name Sysmondrv).Status -ne "Running"))
+                    {
+                        Write-Verbose -Message "Waiting for sysmon services to start"
+                        Start-Sleep 2
+                    }        
+                    Write-Verbose -Message "Sysmon services are started"
+                }
             }
-            TestScript = { 
-                Function Convert-SysmonConfigToXMLBlob {
-                [CmdletBinding()]
-                Param()
-                     try {
-                        $t = [system.io.path]::GetTempFileName()
-                        
-                        $null = Start-Process -FilePath "$($env:systemroot)\system32\sysmon.exe" -ArgumentList @('-c') `
-                                -NoNewWindow -PassThru -RedirectStandardOutput $t -ErrorAction Stop -Wait
-                     } catch {
-                        Write-Warning "Dumping sysmon config went wrong!"
-                        break
-                     }
-  
-                    if($config = Get-Content $t) {
-                        '<Sysmon schemaversion="2.0">'
-
-                        $Hashing = (([regex]'\s-\sHashingAlgorithms:\s+(?<Hash>.*)').Match(@($config)[3]) | Select -expand Groups)[-1].Value
-                        '  <HashAlgorithms>{0}</HashAlgorithms>' -f $Hashing
- 
-
-                        if (@($config)[7] -match '^Rule\sconfiguration\s\(version\s\d{1}\.\d{1,2}\):$') {
-                            ' <EventFiltering>'
-                            $prop = @()
-                            (($config)[-1..-(($config).Length-8)]) | ForEach-Object {
-                                if ($_ -notmatch '\s-\s.*') {
-                                    $prop += $_
-                                } else {
-                                    $node,$attribute = ([regex]'\s-\s(?<NodeName>\w+)\s+onm(n)?atch:\s(?<attribute>.*clude)').Matches($_).Groups |
-                                    Select -Last 2| Select -expand Value
-                                    if ($prop) {
-                                        '  <{0} onmatch="{1}">' -f $node,$attribute
-                                        $prop | ForEach-Object {
-                                            $ChildNode,$filter,$value = ([regex]"\s+(?<ChildNode>\w+)\s+filter:\s(?<filter>\w+)\s+value:\s'(?<Value>.*)'").Matches($_).Groups |
-                                            Select -Last 3 | Select -Expand Value
-                                            '   <{0} condition="{1}">{2}</{0}>' -f $ChildNode,$filter,$value
-                                        }
-                                        '  </{0}>' -f $node 
-                                    } else {
-                                        '  <{0} onmatch="{1}"/>' -f $node,$attribute
-                                    }
-                                    $prop = @()
-                                }
-                            }
-                            ' </EventFiltering>'
-                        }
-                        '</Sysmon>'
-                    } else {
-                        Write-Warning "Cannot find output in $t"
-                    }
-                } #endof function
-
-                if(
-                Compare-Object -ReferenceObject  ([xml](Convert-SysmonConfigToXMLBlob)).InnerXML `
-                               -DifferenceObject ([xml](Get-Content -Path C:\windows\temp\invpolSysmon.xml -Encoding UTF8 )).InnerXml
-
-                ) {
-                    Write-Verbose -Message "Sysmon needs to be configured"
+            TestScript = {                 
+                if(($null -eq (Get-Service -Name Sysmon -ErrorAction:SilentlyContinue)) -and ($null -eq (Get-Service -Name Sysmondrv -ErrorAction:SilentlyContinue))) 
+                {
+                    Write-Verbose -Message "Sysmon services are missed"
                     return $false
-                } else {
-                    Write-Verbose -Message "Sysmon is already configured"
+                } 
+                else 
+                {
+                    Write-Verbose -Message "Sysmon services are present"
                     return $true
                 }
             }
-           DependsOn = '[Script]InstallSysmon','[Registry]SysmonEULA','[File]SysmonXMLPol','[File]InvSysmonXMLPol'
+           DependsOn = '[Script]DownloadSysmon','[File]SysmonConfig'
         }        
-        File  SysmonXMLPol {
-            DestinationPath = 'C:\windows\temp\polSysmon.xml'
+        File  SysmonConfig {
+            DestinationPath = Join-Path $($Env:ChocolateyInstall) '\lib\sysmon\tools\sysmon.xml'
             Ensure = 'Present';
             Force = $true
             Contents = @'
@@ -242,17 +144,16 @@ Configuration SysmonDSC {
 </Sysmon>
 '@
         }
-        File  InvSysmonXMLPol {
-            DestinationPath = 'C:\windows\temp\invpolSysmon.xml'
-            Ensure = 'Present';
-            Force = $true
-            Contents = @'
-<Sysmon schemaversion="3.10">
-  <HashAlgorithms>*</HashAlgorithms>
-</Sysmon>
-'@
+        Service SysmonService
+        {
+            Name        = "Sysmon"            
+            State       = "Running"
         }
-
+        Service SysmonDrvService
+        {
+            Name        = "Sysmondrv"            
+            State       = "Running"
+        }  
     }
 }
 
@@ -264,62 +165,20 @@ Configuration NxLogDSC {
     Import-DscResource -ModuleName PSDesiredStateConfiguration
     Node $NodeName
     {
-        Script DownloadNxLog{
-            GetScript = {
-                @{
-                    GetScript = $GetScript
-                    SetScript = $SetScript
-                    TestScript = $TestScript
-                    Result  = $(Test-Path (Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath 'nxlog-ce.msi'));
-                }
-            }
-            SetScript = {
-                try {
-                    $tmpfile = [System.IO.Path]::GetTempFileName()
-                    $null = Invoke-WebRequest -Uri 'https://nxlog.co/system/files/products/files/1/nxlog-ce-2.9.1716.msi' `
-                                      -OutFile $tmpfile -ErrorAction Stop
-                    Write-Verbose -Message 'Sucessfully downloaded Nxlog-ce.msi'
-                    Unblock-File -Path $tmpfile -ErrorAction Stop
-                    $msifile = Join-Path -Path (Split-Path -Path $tmpfile -Parent) -ChildPath 'nxlog-ce.msi'
-                    if (Test-Path $msifile) {
-                        Remove-Item -Path $msifile -Force -ErrorAction Stop
-                    }
-                    $tmpfile | Rename-Item -NewName 'nxlog-ce.msi' -Force -ErrorAction Stop
-
-                } catch {
-                    Write-Verbose -Message "Something went wrong $($_.Exception.Message)"
-                }
-            }
-           TestScript = {                
-                $s = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath 'nxlog-ce.msi' -ErrorAction SilentlyContinue
-                Write-Verbose -Message "Checking if $s in in place"
-                if (-not(Test-Path -Path $s -PathType Leaf)) {
-                    Write-Verbose -Message "Cannot find nxlog-ce.msi in temp"
-                    return $false
-                }
-                else
-                {
-                    Write-Verbose -Message 'Successfully found nxlog-ce.msi'
-                    return $true
-                } 
-            }
-        }
-
         Script InstallNxlog {
             GetScript = {
                 @{
                     GetScript = $GetScript
                     SetScript = $SetScript
                     TestScript = $TestScript                                        
-                    Result  = $(Test-Path (Join-Path -Path (${Env:ProgramFiles(x86)}) -ChildPath 'nxlog\nxlog.exe') -PathType Leaf);                    
+                    Result  = $(Get-Service -Name nxlog -ErrorAction:SilentlyContinue);                    
                 }
             }
-            SetScript = {
-                $msipath = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath 'nxlog-ce.msi'
-                $msiparms = "/l*  $($env:TEMP)\nxlog-ce-install.log /qn"
+            SetScript = {                
                 try
                 {
-                  $proc=Start-Process -FilePath "$($env:SystemRoot)\System32\msiexec.exe" -ArgumentList "/i $msipath $msiparms" -NoNewWindow -PassThru -Wait -RedirectStandardError "$($env:TEMP)\nxlog-install-error.log" -ErrorAction Stop 
+                  Write-Verbose -Message 'Installing nxlog using choco...'  
+                  Choco install -y nxlog
                   Write-Verbose -Message 'Successfully installed nxlog' 
                 }
                 catch
@@ -328,17 +187,17 @@ Configuration NxLogDSC {
                 }                
             }
             TestScript = { 
-                if(
-                    (Test-Path (Join-Path -Path (${Env:ProgramFiles(x86)}) -ChildPath 'nxlog\nxlog.exe') -PathType Leaf) 
-                ) {
+                if((Test-Path (Join-Path -Path (${Env:ProgramFiles(x86)}) -ChildPath 'nxlog\nxlog.exe') -PathType Leaf))
+                {
                     Write-Verbose -Message "Nxlog is installed"
                     return $true
-                } else {
+                } 
+                else
+                {
                     Write-Verbose -Message "Nxlog isn't installed"
                     return $false
                 }
             }
-           DependsOn = '[Script]DownloadNxlog'
         }
         
         Script ConfigureNxlog {
@@ -451,19 +310,14 @@ Module      xm_json
                 {
                     $tmpfile = [System.IO.Path]::GetTempFileName()                    
                     $nxlogConfig.Replace("`r`n","`n") |Out-File $tmpfile -Encoding default -Confirm:$false -Force                    
-                    if((Get-FileHash -Path $configPath) -ne (Get-FileHash -Path $tmpfile))
+                    if((Get-FileHash -Path $configPath).Hash -ne (Get-FileHash -Path $tmpfile).Hash)
                     {
                         Write-Verbose -Message "Nxlog config need to be updated"
                         return $false
-                    }
-                    elseif((Get-Service -Name nxlog -ErrorAction: SilentlyContinue).Status -ne 'Running')
-                    {
-                        Write-Verbose -Message "Nxlog service not started"
-                        return $fals
-                    }
+                    }                    
                     else
                     {
-                        Write-Verbose -Message "Nxlog service is started and configured"
+                        Write-Verbose -Message "Nxlog config is up to date"
                         return $true 
                     }
                 }
@@ -473,8 +327,14 @@ Module      xm_json
                     return $false
                 }                
             }
-            DependsOn = '[Script]DownloadNxlog','[Script]InstallNxlog'
+            DependsOn = '[Script]InstallNxlog'
         }
+
+        Service NxlogService
+        {
+            Name        = "nxlog"            
+            State       = "Running"
+        }  
 
     }
 }
@@ -585,13 +445,8 @@ if(($DotNetBuildVersion) -ge 378675)
     #Compile the configuration file to a MOF format
     SysmonDSC -OutputPath $SysmonDSCConfig|Out-Null
     #Run the configuration on localhost
-    Start-DscConfiguration -Path $SysmonDSCConfig  -ComputerName localhost -Force -Wait
-    while((Get-Service -Name Sysmon).Status -ne "Running")
-    {
-        Write-Output "Waiting for sysmon service to start"
-        Start-Sleep 2
-    }        
-    Write-Output "Sysmon service started"
+    Start-DscConfiguration -Path $SysmonDSCConfig  -ComputerName localhost -Force -Wait      
+    Write-Output "Sysmon configured"
 
     Write-Output "Installing and configuring nxlog"
     $NxlogDSCConfig = Join-Path $DscConfigRoot "Nxlog"
@@ -600,13 +455,8 @@ if(($DotNetBuildVersion) -ge 378675)
        New-Item -Path $NxlogDSCConfig -Type Directory -Confirm:$false -Force|Out-Null 
     }
     NxLogDSC -OutputPath $NxlogDSCConfig|Out-Null    
-    Start-DscConfiguration -Path $NxlogDSCConfig  -ComputerName localhost -Force -Wait
-    while((Get-Service -Name nxlog).Status -ne "Running")
-    {
-        Write-Output "Waiting for Nxlog service to start"
-        Start-Sleep 2
-    }        
-    Write-Output "Nxlog service started"
+    Start-DscConfiguration -Path $NxlogDSCConfig  -ComputerName localhost -Force -Wait        
+    Write-Output "Nxlog configured"
 
     Write-Output "Setting Vagent service"
     $VagentDSCConfig = Join-Path $DscConfigRoot "Vagent"
