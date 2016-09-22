@@ -350,7 +350,7 @@ Configuration VAgentDSC {
 
         Service VAgentService
         {
-            Name        = "Vagent"            
+            Name        = "vagent.exe"            
             State       = "Running"
         } 
     }
