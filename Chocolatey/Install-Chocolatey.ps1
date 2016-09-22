@@ -160,7 +160,7 @@ Configuration SysmonDSC {
 Configuration NxLogDSC {
     param
     (
-        [string[]]$NodeName = 'localhost'
+        [string[]]$NodeName = 'localhost'       
     )
     Import-DscResource -ModuleName PSDesiredStateConfiguration
     Node $NodeName
@@ -186,8 +186,10 @@ Configuration NxLogDSC {
                     throw $_
                 }                
             }
-            TestScript = { 
-                if((Test-Path (Join-Path -Path (${Env:ProgramFiles(x86)}) -ChildPath 'nxlog\nxlog.exe') -PathType Leaf))
+            TestScript = {
+                $OSArch = (gwmi win32_operatingsystem -computername localhost).OSArchitecture
+                if($OSArch -eq '64-bit') {$installPath =${Env:ProgramFiles(x86)}} else {$installPath =$env:ProgramFiles }                
+                if((Test-Path (Join-Path -Path ($installPath) -ChildPath 'nxlog\nxlog.exe') -PathType Leaf))
                 {
                     Write-Verbose -Message "Nxlog is installed"
                     return $true
@@ -211,9 +213,11 @@ Configuration NxLogDSC {
             }
 
             SetScript = {
-                $nxlogPath = "${Env:ProgramFiles(x86)}\nxlog"
-                [string]$nxlogConfig = @'
-define ROOT C:\Program Files (x86)\nxlog
+                $OSArch = (gwmi win32_operatingsystem -computername localhost).OSArchitecture
+                if($OSArch -eq '64-bit') {$installPath =${Env:ProgramFiles(x86)}} else {$installPath =$env:ProgramFiles }
+                $nxlogPath = "$installPath\nxlog"
+                [string]$nxlogConfig = @"
+define ROOT $nxlogPath
 
 Moduledir %ROOT%\modules
 CacheDir %ROOT%\data
@@ -239,7 +243,7 @@ Module      xm_json
     Module      om_tcp
     Host        localhost
     Port        20371
-	Exec        $type="eventlog"; to_json();
+	Exec        `$type="eventlog"; to_json();
     #Exec        to_syslog_snare();
 </Output>
 
@@ -247,7 +251,7 @@ Module      xm_json
     Path        in => out
 </Route>
 
-'@               
+"@               
                 $configPath = Join-Path $nxlogPath "conf\nxlog.conf"
                 if((Get-Service -Name nxlog -ErrorAction: SilentlyContinue).Status -eq 'Running')
                 {
@@ -268,9 +272,11 @@ Module      xm_json
                 {throw $_}                  
             }
             TestScript = {
-                $nxlogPath = "${Env:ProgramFiles(x86)}\nxlog"
-                [string]$nxlogConfig = @'
-define ROOT C:\Program Files (x86)\nxlog
+                $OSArch = (gwmi win32_operatingsystem -computername localhost).OSArchitecture
+                if($OSArch -eq '64-bit') {$installPath =${Env:ProgramFiles(x86)}} else {$installPath =$env:ProgramFiles}
+                $nxlogPath = "$installPath\nxlog"
+                [string]$nxlogConfig = @"
+define ROOT $nxlogPath
 
 Moduledir %ROOT%\modules
 CacheDir %ROOT%\data
@@ -296,7 +302,7 @@ Module      xm_json
     Module      om_tcp
     Host        localhost
     Port        20371
-	Exec        $type="eventlog"; to_json();
+	Exec        `$type="eventlog"; to_json();
     #Exec        to_syslog_snare();
 </Output>
 
@@ -304,7 +310,7 @@ Module      xm_json
     Path        in => out
 </Route>
 
-'@               
+"@               
                 $configPath = Join-Path $nxlogPath "conf\nxlog.conf"
                 if(Test-Path $configPath -PathType Leaf -ErrorAction: SilentlyContinue)
                 {
@@ -364,13 +370,16 @@ $ChocoScriptUrl = 'https://chocolatey.org/install.ps1'
 $PowerShellMajorVersion = $PSVersionTable.PSVersion.Major
 $DotNetBuildVersion = Get-DotNetBuildVersion
 $DscConfigRoot = Join-Path -Path $env:SystemDrive -ChildPath "DSC"
+$OSArch = (gwmi win32_operatingsystem -computername localhost).OSArchitecture
+if($OSArch -eq '64-bit') {$installPath =${Env:ProgramFiles(x86)}} else {$installPath =$env:ProgramFiles}
+$nxlogPath = Join-Path $installPath 'nxlog'
 [string]$sysmonConfig = @'
 <Sysmon schemaversion="3.10">
   <HashAlgorithms>*</HashAlgorithms>
 </Sysmon>
 '@
-[string]$nxlogConfig = @'
-define ROOT C:\Program Files (x86)\nxlog
+[string]$nxlogConfig = @"
+define ROOT $nxlogPath
 
 Moduledir %ROOT%\modules
 CacheDir %ROOT%\data
@@ -396,7 +405,7 @@ Module      xm_json
     Module      om_tcp
     Host        localhost
     Port        20371
-	Exec        $type="eventlog"; to_json();
+	Exec        `$type="eventlog"; to_json();
     #Exec        to_syslog_snare();
 </Output>
 
@@ -404,7 +413,7 @@ Module      xm_json
     Path        in => out
 </Route>
 
-'@
+"@
 
 
 #################MAIN####################
@@ -463,7 +472,7 @@ if(($DotNetBuildVersion) -ge 378675)
        New-Item -Path $NxlogDSCConfig -Type Directory -Confirm:$false -Force|Out-Null 
     }
     NxLogDSC -OutputPath $NxlogDSCConfig|Out-Null    
-    Start-DscConfiguration -Path $NxlogDSCConfig  -ComputerName localhost -Force -Wait        
+    Start-DscConfiguration -Path $NxlogDSCConfig -ComputerName localhost -Force -Wait        
     Write-Output "Nxlog configured"
 
     Write-Output "Setting Vagent service"
@@ -524,7 +533,6 @@ if(($DotNetBuildVersion) -ge 378675)
 
     Write-Output "Installing nxlog"
     Choco install -y nxlog
-    $nxlogPath = "${Env:ProgramFiles(x86)}\nxlog"
     Write-Output "Configuring nxlog"
     if(Test-Path $nxlogPath)
     {    
@@ -582,7 +590,6 @@ else
     
     Write-Output "Installing nxlog"
     Choco install -y nxlog
-    $nxlogPath = "${Env:ProgramFiles(x86)}\nxlog"
     Write-Output "Configuring nxlog"
     if(Test-Path $nxlogPath)
     {
