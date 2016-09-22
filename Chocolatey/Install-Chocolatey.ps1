@@ -416,16 +416,24 @@ Write-Output "Setting PowerShell ExecutionPolicy to Unrestricted..."
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Unrestricted -Force
 
 #install Chocolatey
-Write-Output "Installing Chockolatey..."
-if($PowerShellMajorVersion -ge 3)
+
+if(!(Test-Path $Env:ChocolateyInstall -PathType Container))
 {
-    Invoke-WebRequest $ChocoScriptUrl -UseBasicParsing|Invoke-Expression
+    Write-Output "Installing Chockolatey..."
+    if($PowerShellMajorVersion -ge 3)
+    {
+        Invoke-WebRequest $ChocoScriptUrl -UseBasicParsing|Invoke-Expression
+    }
+    else
+    {
+        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString($ChocoScriptUrl))
+        Write-Output "Done"
+    }
 }
 else
 {
-    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString($ChocoScriptUrl))
+    Write-Output "Chockolatey is already installed in $($Env:ChocolateyInstall)"
 }
-Write-Output "Done"
 
 #checking .NET version installed
 Write-Output "Checking .NET Framework version..."
