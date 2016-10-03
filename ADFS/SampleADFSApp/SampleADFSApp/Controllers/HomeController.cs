@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Web;
 using System.Web.Mvc;
 
 namespace SampleADFSApp.Controllers
 {
-    [Authorize]
+    [AllowAnonymous]
     public class HomeController : Controller
     {
         public ActionResult Index()
@@ -26,6 +27,13 @@ namespace SampleADFSApp.Controllers
             ViewBag.Message = "Your contact page.";
 
             return View();
+        }
+
+        [Authorize]
+        public ActionResult Secure()
+        {
+            var identity = System.Web.HttpContext.Current.User.Identity as ClaimsIdentity;
+            return View(identity.Claims);
         }
     }
 }

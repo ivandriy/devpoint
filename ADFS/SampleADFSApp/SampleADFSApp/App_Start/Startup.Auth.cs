@@ -9,35 +9,54 @@ using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Cookies;
 using Microsoft.Owin.Security.WsFederation;
 using Owin;
+using Microsoft.Owin;
+using Kentor.AuthServices.Owin;
+using Kentor.AuthServices.Configuration;
+using System.IdentityModel.Metadata;
+using Kentor.AuthServices.Metadata;
+using Kentor.AuthServices;
+using Kentor.AuthServices.WebSso;
+using System.Security.Cryptography.X509Certificates;
+using System.Web.Hosting;
+using System.IdentityModel.Selectors;
+using System.IdentityModel.Tokens;
+using Microsoft.AspNet.Identity;
 
 namespace SampleADFSApp
 {
     public partial class Startup
     {
-        private static string realm = ConfigurationManager.AppSettings["ida:RPIdentifier"];
-        private static string metadata = string.Format("https://{0}/federationmetadata/2007-06/federationmetadata.xml", ConfigurationManager.AppSettings["ida:ADFS"]);
-
+        private static string metaUri =
+            $"https://{ConfigurationManager.AppSettings["ADFS"]}/federationmetadata/2007-06/federationmetadata.xml";
+        private string entityId = $"http://{ConfigurationManager.AppSettings["ADFS"]}/adfs/services/trust";
+        private string localMetaUri = ConfigurationManager.AppSettings["MetadataUri"];
+        private Uri returnUrl = new Uri(ConfigurationManager.AppSettings["ReturnUrl"]);
+        private string adfsType = ConfigurationManager.AppSettings["ADFSType"];
         public void ConfigureAuth(IAppBuilder app)
         {
             app.SetDefaultSignInAsAuthenticationType(CookieAuthenticationDefaults.AuthenticationType);
-
-            app.UseCookieAuthentication(new CookieAuthenticationOptions());
-
-            app.UseWsFederationAuthentication(
-                new WsFederationAuthenticationOptions
+            app.UseCookieAuthentication(new CookieAuthenticationOptions());            
+            var authServicesOptions = new KentorAuthServicesAuthenticationOptions(false)
+            {
+                SPOptions = new SPOptions
                 {
-                    Wtrealm = realm,
-                    MetadataAddress = metadata,
-                    Notifications = new WsFederationAuthenticationNotifications
-                    {
-                        AuthenticationFailed = context =>
-                        {
-                            context.HandleResponse();
-                            context.Response.Redirect("Home/Error?message=" + context.Exception.Message);
-                            return Task.FromResult(0);
-                        }
-                    }
-                });
+                    EntityId = new EntityId(localMetaUri),
+                    ReturnUrl = returnUrl
+
+                },
+                AuthenticationType = adfsType,
+                Caption = adfsType,                
+            };
+
+            Uri metadataURI = new Uri(metaUri);
+            authServicesOptions.IdentityProviders.Add(new IdentityProvider(
+                    new EntityId(entityId),
+                    authServicesOptions.SPOptions)
+            {
+                MetadataLocation = metadataURI.ToString(),
+                LoadMetadata = true,                
+            });
+            app.UseKentorAuthServicesAuthentication(authServicesOptions);
         }
     }
 }
