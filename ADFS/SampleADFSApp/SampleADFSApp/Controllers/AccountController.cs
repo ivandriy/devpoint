@@ -1,16 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
-using Kentor.AuthServices.Owin;
-using Microsoft.AspNet.Identity;
 using Microsoft.Owin.Security.Cookies;
-using Microsoft.Owin.Security.WsFederation;
 using Microsoft.Owin.Security;
-using Microsoft.Owin.Security.Provider;
 
 namespace SampleADFSApp.Controllers
 {

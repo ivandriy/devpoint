@@ -7,20 +7,12 @@ using System.Threading.Tasks;
 using System.Web;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Cookies;
-using Microsoft.Owin.Security.WsFederation;
 using Owin;
-using Microsoft.Owin;
 using Kentor.AuthServices.Owin;
 using Kentor.AuthServices.Configuration;
 using System.IdentityModel.Metadata;
-using Kentor.AuthServices.Metadata;
 using Kentor.AuthServices;
-using Kentor.AuthServices.WebSso;
-using System.Security.Cryptography.X509Certificates;
-using System.Web.Hosting;
-using System.IdentityModel.Selectors;
-using System.IdentityModel.Tokens;
-using Microsoft.AspNet.Identity;
+
 
 namespace SampleADFSApp
 {
