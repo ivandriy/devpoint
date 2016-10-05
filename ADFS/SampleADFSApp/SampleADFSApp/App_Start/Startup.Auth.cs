@@ -11,6 +11,8 @@ using Owin;
 using Kentor.AuthServices.Owin;
 using Kentor.AuthServices.Configuration;
 using System.IdentityModel.Metadata;
+using System.Security.Cryptography.X509Certificates;
+using System.Web.Hosting;
 using Kentor.AuthServices;
 
 
@@ -33,21 +35,26 @@ namespace SampleADFSApp
                 SPOptions = new SPOptions
                 {
                     EntityId = new EntityId(localMetaUri),
-                    ReturnUrl = returnUrl
-
+                    ReturnUrl = returnUrl,
+                    WantAssertionsSigned = true                  
                 },
                 AuthenticationType = adfsType,
                 Caption = adfsType,                
             };
 
             Uri metadataURI = new Uri(metaUri);
-            authServicesOptions.IdentityProviders.Add(new IdentityProvider(
-                    new EntityId(entityId),
-                    authServicesOptions.SPOptions)
+            var idp = new IdentityProvider(new EntityId(entityId), authServicesOptions.SPOptions)
             {
+                AllowUnsolicitedAuthnResponse = true,
                 MetadataLocation = metadataURI.ToString(),
-                LoadMetadata = true,                
-            });
+                LoadMetadata = true,
+            };
+            idp.SigningKeys.AddConfiguredKey(
+                new X509Certificate2(
+                    HostingEnvironment.MapPath(
+                        "~/App_Data/MiamiEdu.Shib.Dev.cer")));
+
+            authServicesOptions.IdentityProviders.Add(idp);
             app.UseKentorAuthServicesAuthentication(authServicesOptions);
         }
     }
