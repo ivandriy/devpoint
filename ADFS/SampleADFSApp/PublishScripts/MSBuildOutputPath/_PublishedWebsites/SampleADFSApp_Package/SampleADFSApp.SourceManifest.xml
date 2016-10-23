@@ -3,4 +3,5 @@
   <IisApp path="C:\Users\nomad\Documents\GitHub\devpoint\ADFS\SampleADFSApp\SampleADFSApp\obj\Release\Package\PackageTmp" />
   <setAcl path="C:\Users\nomad\Documents\GitHub\devpoint\ADFS\SampleADFSApp\SampleADFSApp\obj\Release\Package\PackageTmp" setAclResourceType="Directory" />
   <setAcl path="C:\Users\nomad\Documents\GitHub\devpoint\ADFS\SampleADFSApp\SampleADFSApp\obj\Release\Package\PackageTmp" setAclUser="anonymousAuthenticationUser" setAclResourceType="Directory" />
+  <setAcl path="C:\Users\nomad\Documents\GitHub\devpoint\ADFS\SampleADFSApp\SampleADFSApp\obj\Release\Package\PackageTmp\App_Data" setAclResourceType="Directory" setAclAccess="Write" />
 </sitemanifest>
