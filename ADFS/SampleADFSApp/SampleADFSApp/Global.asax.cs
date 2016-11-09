@@ -13,6 +13,7 @@ namespace SampleADFSApp
     {
         protected void Application_Start()
         {
+            Kentor.AuthServices.Configuration.Options.GlobalEnableSha256XmlSignatures();
             GlobalConfiguration.Configure(WebApiConfig.Register);
             AreaRegistration.RegisterAllAreas();
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);

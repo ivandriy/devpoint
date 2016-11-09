@@ -224,8 +224,8 @@
     <Content Include="ApplicationInsights.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="App_Data\AzureApp_private.pfx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <Content Include="App_Data\AzureApp_private_sha256.pfx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="Properties\PublishProfiles\mysampleadfs - FTP.pubxml" />
     <None Include="Properties\PublishProfiles\mysampleadfs - Web Deploy.pubxml" />

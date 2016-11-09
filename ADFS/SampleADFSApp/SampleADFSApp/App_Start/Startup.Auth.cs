@@ -69,7 +69,7 @@ namespace SampleADFSApp
                 WantAssertionsSigned = true
             };
             spOptions.ServiceCertificates.Add(new X509Certificate2(
-                AppDomain.CurrentDomain.SetupInformation.ApplicationBase + "/App_Data/AzureApp_private.pfx","nomad_is_1593*"));
+                AppDomain.CurrentDomain.SetupInformation.ApplicationBase + "/App_Data/AzureApp_private_sha256.pfx","nomad_is_1593*"));
 
             return spOptions;
         }
