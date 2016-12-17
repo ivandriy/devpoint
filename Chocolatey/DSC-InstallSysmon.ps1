@@ -200,7 +200,8 @@ Configuration SysmonDSC {
     }
 }
 
-if (-not(test-path -Path C:\DSC\Sysmon -PathType Container)){
+if (-not(test-path -Path C:\DSC\Sysmon -PathType Container))
+{
     mkdir C:\DSC\Sysmon
 }
 # Compile the configuration file to a MOF format

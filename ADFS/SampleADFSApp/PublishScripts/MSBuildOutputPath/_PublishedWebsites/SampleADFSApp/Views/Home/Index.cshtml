@@ -1,0 +1,22 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+<h1>Sample Saml2 Authentication Application</h1>
+<p>
+    This is a sample ASP.NET MVC application for Saml2 authentication using ADFS as Idp.
+</p>
+
+@if (!User.Identity.IsAuthenticated)
+{
+    <p>
+        You are currently <span id="status">not signed in</span>.
+    </p>
+}
+else
+{
+    <p>
+        You are <span id="status">signed in</span>.
+    </p>
+}
+
