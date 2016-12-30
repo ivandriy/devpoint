@@ -1,0 +1,2 @@
+#Source - https://docs.microsoft.com/en-us/azure/virtual-machines/virtual-machines-linux-docker-machine
+docker-machine create --driver azure --azure-subscription-id aca203c1-d20c-4444-96b2-13a402194c52 --azure-location westeurope --azure-ssh-user nomad --azure-open-port 80 docker-machine 
