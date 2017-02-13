@@ -1,0 +1,21 @@
+master:
+  image:
+    scottpgallagher/galeramaster
+  hostname:
+    master
+  ports:
+    - "3306:3306"
+node1:
+  image:
+    scottpgallagher/galeranode
+  hostname:
+    node1
+  links:
+    - master
+node2:
+  image:
+    scottpgallagher/galeranode
+  hostname:
+    node2
+  links:
+    - master
