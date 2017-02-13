@@ -1,0 +1,8 @@
+version: '2.1'
+
+services:
+  sampleadfsapp:
+    image: sampleadfsapp
+    build:
+      context: .
+      dockerfile: Dockerfile

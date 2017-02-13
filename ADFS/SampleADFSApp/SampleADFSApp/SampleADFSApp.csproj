@@ -26,6 +26,7 @@
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
     <ApplicationInsightsResourceId>/subscriptions/aca203c1-d20c-4444-96b2-13a402194c52/resourcegroups/Default-ApplicationInsights-CentralUS/providers/microsoft.insights/components/SampleADFSApp</ApplicationInsightsResourceId>
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -226,6 +227,20 @@
     </Content>
     <Content Include="App_Data\AzureApp_private_sha256.pfx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Dockerfile" />
+    <Content Include=".dockerignore">
+      <DependentUpon>Dockerfile</DependentUpon>
+    </Content>
+    <Content Include="docker-compose.yml" />
+    <Content Include="docker-compose.override.yml">
+      <DependentUpon>docker-compose.yml</DependentUpon>
+    </Content>
+    <Content Include="docker-compose.vs.debug.yml">
+      <DependentUpon>docker-compose.yml</DependentUpon>
+    </Content>
+    <Content Include="docker-compose.vs.release.yml">
+      <DependentUpon>docker-compose.yml</DependentUpon>
     </Content>
     <None Include="Properties\PublishProfiles\mysampleadfs - FTP.pubxml" />
     <None Include="Properties\PublishProfiles\mysampleadfs - Web Deploy.pubxml" />

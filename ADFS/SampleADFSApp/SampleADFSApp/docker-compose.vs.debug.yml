@@ -1,0 +1,13 @@
+version: '2.1'
+
+services:
+  sampleadfsapp:
+    image: sampleadfsapp:dev
+    build:
+      args:
+        source: ${DOCKER_BUILD_SOURCE}
+    volumes:
+      - .:C:\inetpub\wwwroot
+      - ~\msvsmon:C:\msvsmon:ro
+    labels:
+      - "com.microsoft.visualstudio.targetoperatingsystem=windows"
