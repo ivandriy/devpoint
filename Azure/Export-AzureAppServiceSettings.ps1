@@ -1,9 +1,12 @@
 param(
-    $resourceGroup = "DevelopmentRD",
-    $webAppName = "CertifID-Dev-Server"
+    [parameter(Mandatory=$true)]
+    $resourceGroup,
+    [parameter(Mandatory=$true)]
+    $webAppName,
+    [parameter(Mandatory=$true)]
+    $subscriptionId
 )
 
-$subscriptionId = "b704bb27-cd2b-4463-82c8-f9456c07a3a6"
 $rootPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $appSettingsFileName = "$($webAppName)_appSettings.csv"
 $connectionStringsFileName = "$($webAppName)_connectionStrings.csv"
