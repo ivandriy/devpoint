@@ -30,12 +30,12 @@ if($webApp -ne $null)
         Write-Host "App Settings saved at $appSettingsExportPath"
 
     }
-    $connStrings = $webApp.SiteConfig.ConnectionStrings | Select-Object -Property Name, Type, ConnectionString 
+    $connStrings = $webApp.SiteConfig.ConnectionStrings | Select-Object -Property Name, ConnectionString 
     If ($connStrings -ne $null) 
     {
         Write-Host "Exporting Connection Strings into csv..."
-        $connectionStringsExportPath| Export-Csv -Path $connectionStringsFileName -NoTypeInformation
-        Write-Host "Connection Strings saved at $connectionStringsFileName"
+        $connStrings| Export-Csv -Path $connectionStringsExportPath -NoTypeInformation
+        Write-Host "Connection Strings saved at $connectionStringsExportPath"
     }
 
 }
