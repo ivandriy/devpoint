@@ -1,7 +1,9 @@
 param(    
     $webAppSourceName,    
     $webAppTargetName,    
-    $subscriptionId
+    $subscriptionId,
+    [parameter(Mandatory=$true)]
+    $resourceGroup
 )
 
 function Export-AppSettings ($webApp) 
@@ -54,7 +56,7 @@ if ($subscriptionId -eq $null) {
 Set-AzureRmContext -SubscriptionId $subscriptions[$subsIndex].Id |Out-Null
 
 if (($webAppSourceName -eq $null) -or ($webAppTargetName -eq $null) ) {
-    $webApps = Get-AzureRmWebApp
+    $webApps = Get-AzureRmWebApp -ResourceGroupName $resourceGroup
     Write-Host "WebApps"
     Write-Host "|Index| Name |"
     For ($i = 0; $i -lt $webApps.count; $i++) {
@@ -64,7 +66,7 @@ if (($webAppSourceName -eq $null) -or ($webAppTargetName -eq $null) ) {
     $webAppIndexS = Read-Host  -Prompt 'Select source application by index'
     $webAppSourceName = $webApps[$webAppIndexS].Name
 
-    $webAppIndexT = Read-Host  -Prompt 'Select source application by index'
+    $webAppIndexT = Read-Host  -Prompt 'Select target application by index'
     $webAppTargetName = $webApps[$webAppIndexT].Name
 }
 
@@ -83,36 +85,39 @@ Export-AppSettings $webAppTarget
 
 # Get reference to the source Connection Strings
 $connectionStringsSource = $webAppSource.SiteConfig.ConnectionStrings 
+if($connectionStringsSource -ne $null)
+{
+    # Create Hash variable for Connection Strings
+    $connectionStringsTarget = @{}
 
-# Create Hash variable for Connection Strings
-$connectionStringsTarget = @{}
+    # Copy over all Existing Connection Strings to the Hash
+    ForEach($connStringSource in $connectionStringsSource) {
+        $connectionStringsTarget[$connStringSource.Name] = `
+            @{ Type = $connStringSource.Type.ToString(); `
+                Value = $connStringSource.ConnectionString }
+    }
 
-# Copy over all Existing Connection Strings to the Hash
-ForEach($connStringSource in $connectionStringsSource) {
-    $connectionStringsTarget[$connStringSource.Name] = `
-         @{ Type = $connStringSource.Type.ToString(); `
-            Value = $connStringSource.ConnectionString }
+    # Save Connection Strings to Target
+    Write-Host "Migrating ConnectionStrings from $webAppSourceName into $webAppTargetName"
+    Set-AzureRmWebApp -Name $webAppTargetName -ResourceGroupName $resourceGroup -ConnectionStrings $connectionStringsTarget|Out-Null
+    Write-Host "ConnectionStrings has been migrated"
 }
 
-# Save Connection Strings to Target
-Write-Host "Migrating ConnectionStrings from $webAppSourceName into $webAppTargetName"
-Set-AzureRmWebApp -ResourceGroupName $resourceGroupTarget -Name $webAppTargetName `
-    -ConnectionStrings $connectionStringsTarget|Out-Null
-Write-Host "ConnectionStrings has been migrated"
 
 # Get reference to the source app settings
 $appSettingsSource = $webAppSource.SiteConfig.AppSettings
+if($appSettingsSource -ne $null)
+{
+    # Create Hash variable for App Settings
+    $appSettingsTarget = @{}
 
-# Create Hash variable for App Settings
-$appSettingsTarget = @{}
+    # Copy over all Existing App Settings to the Hash
+    ForEach ($appSettingSource in $appSettingsSource) {
+        $appSettingsTarget[$appSettingSource.Name] = $appSettingSource.Value
+    }
 
-# Copy over all Existing App Settings to the Hash
-ForEach ($appSettingSource in $appSettingsSource) {
-    $appSettingsTarget[$appSettingSource.Name] = $appSettingSource.Value
+    # Save App Settings to Target
+    Write-Host "Migrating App Settings from $webAppSourceName into $webAppTargetName"
+    Set-AzureRmWebApp -Name $webAppTargetName -ResourceGroupName $resourceGroup -AppSettings $appSettingsTarget|Out-Null
+    Write-Host "App Settings has been migrated"
 }
-
-# Save App Settings to Target
-Write-Host "Migrating App Settings from $webAppSourceName into $webAppTargetName"
-Set-AzureRmWebApp -ResourceGroupName $resourceGroupTarget -Name $webAppTargetName `
-   -AppSettings $appSettingsTarget|Out-Null
-   Write-Host "App Settings has been migrated"
