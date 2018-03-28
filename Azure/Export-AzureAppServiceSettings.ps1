@@ -14,9 +14,9 @@ else {
 if ($subscriptionId -eq $null) {
     $subscriptions = Get-AzureRmSubscription
     Write-Host "Azure Subscriptions"
-    Write-Host "Index | Name | Id"
+    Write-Host "|Index|Name|Id|"
     For ($i = 0; $i -lt $subscriptions.count; $i++) {
-        Write-Host $i")" $subscriptions[$i].Name":" $subscriptions[$i].Id
+        Write-Host $i"|" $subscriptions[$i].Name"|" $subscriptions[$i].Id
     }
 
     $subsIndex = Read-Host  -Prompt 'Select index'

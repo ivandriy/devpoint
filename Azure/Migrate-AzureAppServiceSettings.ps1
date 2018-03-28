@@ -1,13 +1,6 @@
-param(
-    [parameter(Mandatory=$true)]
-    $resourceGroupSource,
-    [parameter(Mandatory=$true)]
-    $resourceGroupTarget,
-    [parameter(Mandatory=$true)]
-    $webAppSourceName,
-    [parameter(Mandatory=$true)]
-    $webAppTargetName,
-    [parameter(Mandatory=$true)]
+param(    
+    $webAppSourceName,    
+    $webAppTargetName,    
     $subscriptionId
 )
 
@@ -41,15 +34,47 @@ function Export-AppSettings ($webApp)
 
 $rootPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-Login-AzureRmAccount
+if ($Credential -eq $null) {
+    Login-AzureRmAccount | Out-Null
+}
+else {
+    Login-AzureRmAccount -Credential $Credential | Out-Null
+}
 
-Set-AzureRmContext -SubscriptionId $subscriptionId|Out-Null
+if ($subscriptionId -eq $null) {
+    $subscriptions = Get-AzureRmSubscription
+    Write-Host "Azure Subscriptions"
+    Write-Host "|Index|Name|Id|"
+    For ($i = 0; $i -lt $subscriptions.count; $i++) {
+        Write-Host $i"|" $subscriptions[$i].Name"|" $subscriptions[$i].Id
+    }
+
+    $subsIndex = Read-Host  -Prompt 'Select index'
+    $subscriptionId = $subscriptions[$subsIndex].Id
+}
+
+Set-AzureRmContext -SubscriptionId $subscriptions[$subsIndex].Id |Out-Null
+
+if (($webAppSourceName -eq $null) -or ($webAppTargetName -eq $null) ) {
+    $webApps = Get-AzureRmWebApp
+    Write-Host "WebApps"
+    Write-Host "|Index| Name |"
+    For ($i = 0; $i -lt $webApps.count; $i++) {
+        Write-Host $i"|" $webApps[$i].Name
+    }
+
+    $webAppIndexS = Read-Host  -Prompt 'Select source application by index'
+    $webAppSourceName = $webApps[$webAppIndexS].Name
+
+    $webAppIndexT = Read-Host  -Prompt 'Select source application by index'
+    $webAppTargetName = $webApps[$webAppIndexT].Name
+}
 
 # Load Existing Web App settings for source and target
 Write-Host "Loading $webAppSourceName..."
-$webAppSource = Get-AzureRmWebApp -ResourceGroupName $resourceGroupSource -Name $webAppSourceName
+$webAppSource = Get-AzureRmWebApp -Name $webAppSourceName
 Write-Host "Loading $webAppTargetName"
-$webAppTarget = Get-AzureRmWebApp -ResourceGroupName $resourceGroupSource -Name $webAppTargetName
+$webAppTarget = Get-AzureRmWebApp -Name $webAppTargetName
 
 #Export App Service settings firstly
 Write-Warning "Export current App Service settings firstly..."
