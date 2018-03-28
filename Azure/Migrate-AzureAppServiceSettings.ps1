@@ -32,8 +32,6 @@ function Export-AppSettings ($webApp)
     
 }
 
-$rootPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-
 if ($Credential -eq $null) {
     Login-AzureRmAccount | Out-Null
 }
@@ -69,6 +67,8 @@ if (($webAppSourceName -eq $null) -or ($webAppTargetName -eq $null) ) {
     $webAppIndexT = Read-Host  -Prompt 'Select source application by index'
     $webAppTargetName = $webApps[$webAppIndexT].Name
 }
+
+$rootPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # Load Existing Web App settings for source and target
 Write-Host "Loading $webAppSourceName..."
