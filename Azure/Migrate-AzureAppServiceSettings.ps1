@@ -1,3 +1,24 @@
+<#
+.SYNOPSIS
+    Script to move App Service settings between two Azure App Services
+.DESCRIPTION
+    Script takes resource group as mandatory parameter (so 2 App Services must be in same resource group).
+    Optionally, you can specify App Service name for source (from which to copy ) and target (to which to copy) App Service.
+    Before apply changes, it will export both source and target settings into csv.
+.EXAMPLE
+    .\Migrate-AzureAppServiceSettings.ps1 -webAppSourceName MySourceApp -webAppTargetName MyTargetApp -subscriptionId 0000000000-000000-00000000-00000000 -resourceGroup MyGroup
+    Script will copy settings from MySourceApp to MyTargetApp
+
+    .\Migrate-AzureAppServiceSettings.ps1 -resourceGroup MyGroup
+    Script will ask you to choose source and target App Service and subscription. Then will copy settings from source to target.
+.INPUTS
+    Inputs (if any)
+.OUTPUTS
+    Output (if any)
+.NOTES
+    General notes
+#>
+
 param(    
     $webAppSourceName,    
     $webAppTargetName,    
