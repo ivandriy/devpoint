@@ -11,12 +11,6 @@
 
     .\Migrate-AzureAppServiceSettings.ps1 -resourceGroup MyGroup
     Script will ask you to choose source and target App Service and subscription. Then will copy settings from source to target.
-.INPUTS
-    Inputs (if any)
-.OUTPUTS
-    Output (if any)
-.NOTES
-    General notes
 #>
 
 param(    
