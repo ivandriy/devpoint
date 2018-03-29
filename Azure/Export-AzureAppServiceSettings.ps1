@@ -1,3 +1,16 @@
+<#
+.SYNOPSIS
+    Sciprt to export Azure App Service Settings into csv file
+.DESCRIPTION
+    Script takes credentials, subscription id and App Service name as parameters, connects to App Service and export App Settings and Connection Strings into csv file
+.EXAMPLE
+    .\Export-AzureAppServiceSettings.ps1 -Credentials $myCreds -subscriptionId 0000000000-000000-00000000-00000000 -webAppName MyWebApp
+    Export settings for App Service named MyWebApp
+    
+    .\Export-AzureAppServiceSettings.ps1
+    Script will ask you to choose subscription and App Service from the list. Then will export settings into csv.
+#>
+
 param(    
     [System.Management.Automation.PSCredential]$Credential,    
     $subscriptionId,    
